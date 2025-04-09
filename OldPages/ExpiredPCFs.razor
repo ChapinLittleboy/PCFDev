@@ -1,0 +1,92 @@
+﻿@page "/ExpiredPCFs"
+
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using System.Threading.Tasks
+@using BlazorServerDatagridApp2.Data
+@using BlazorServerDatagridApp2.Models
+@using Dapper
+@using Microsoft.AspNetCore.Components
+@using Microsoft.Data.SqlClient
+@using Syncfusion.Blazor.DropDowns
+@using Syncfusion.Blazor.Grids
+@inject IConfiguration Configuration
+
+@if (connectionName == "Development")
+{
+    <h6 style="color: red; font-weight: bold;">Environment: @connectionName</h6>
+}
+<h3>Pricing Control Forms for RepID 'GUL'</h3>
+@{
+    string[] exportGrids = { "FirstGrid", "SecondGrid" };
+}
+<SfGrid  DataSource="@pcfHeaders" Height="600px" AllowFiltering="false" AllowMultiSorting="true" AllowSorting="true">
+    <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
+    <GridColumns>
+        <GridColumn Field="CustomerNumber" HeaderText="Customer Number" Width="75" TextAlign="TextAlign.Left"></GridColumn>
+        <GridColumn Field="CustomerName" HeaderText="Customer Name" Width="200" TextAlign="TextAlign.Left"></GridColumn>
+        <GridColumn Field="StartDate" HeaderText="Start Date" Format="d" Width="100" TextAlign="TextAlign.Center"></GridColumn>
+        <GridColumn Field="EndDate" HeaderText="End Date" Format="d" Width="100" TextAlign="TextAlign.Center"></GridColumn>
+        <GridColumn Field="PcfNumber" HeaderText="PCF Number" Width="75" TextAlign="TextAlign.Center"></GridColumn>
+        <!-- Status icon column using a template -->
+        <GridColumn HeaderText="Status" Width="40">
+            <Template>
+                @{
+                    // Determine the icon path based on the ApprovalStatus value
+                    var header = (PCFHeaderDTO)@context;
+                    string iconPath = header.ApprovalStatus.ToIconPath();
+                }
+                <img src="@iconPath" alt="@header.ApprovalStatus.ToString()" width="20" height="20"/>
+            </Template>
+        </GridColumn>
+        <GridColumn HeaderText="Action" Width="150">
+            <Template Context="pcfObj">
+                <button class="btn btn-primary" @onclick="() => NavigateToPCFDetails(((PCFHeaderDTO)pcfObj).PcfNumber)">View Details</button>
+            </Template>
+        </GridColumn>
+    </GridColumns>
+</SfGrid>
+
+
+
+@code {
+    // Collection to hold PCF headers for the specific Rep
+    private List<PCFHeaderDTO>? pcfHeaders;
+
+    // Connection string to connect to the SQL Server
+    private string connectionString = @"Data Source=ciisql01;Initial Catalog=custinfo_zbldev;User Id=sa;Password='x';TrustServerCertificate=True;";
+    private string connectionName = "Development";
+    protected override async Task OnInitializedAsync()
+    {
+        connectionString = Configuration.GetConnectionString(connectionName);
+        await LoadPCFHeaders();
+    }
+
+    // Load PCF headers for RepID 'GUL' and where the current date falls between StartDate and EndDate
+    private async Task LoadPCFHeaders()
+    {
+        using (var connection = new SqlConnection(connectionString))
+        {
+            var query = @"SELECT SRNum as RepID, CustNum as CustomerNumber, CustName as CustomerName, 
+                            ProgSDate as StartDate,ProgEDate as EndDate, PCFNum as PcfNumber, 4 as ApprovalStatus
+                          FROM ProgControl
+                          WHERE SRNum = @RepID AND @CurrentDate > ProgEDate
+                            ORDER BY CustName, CustNum, ProgSDate";
+
+            var parameters = new { RepID = "GUL", CurrentDate = DateTime.Now.Date };
+
+            pcfHeaders = (await connection.QueryAsync<PCFHeaderDTO>(query, parameters)).ToList();
+        }
+    }
+
+    // Method to navigate to the details page for a specific PCF
+    [Inject] private NavigationManager NavigationManager { get; set; }
+
+    private void NavigateToPCFDetails(string pcfNumber)
+    {
+        NavigationManager.NavigateTo($"/datagrid-example/{pcfNumber}");
+    }
+}
+
+

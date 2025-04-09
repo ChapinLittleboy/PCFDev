@@ -1,0 +1,115 @@
+﻿@page "/datagrid2orig/{pcfNumber:int}"
+
+@using BlazorServerDatagridApp2.Data
+@using BlazorServerDatagridApp2.Models
+@using Dapper
+@using Microsoft.Data.SqlClient
+@using Syncfusion.Blazor.Grids
+@inject IConfiguration Configuration
+
+@if (connectionName == "Development")
+{
+    <h6 style="color: red; font-weight: bold;">Environment: @connectionName</h6>
+}
+
+
+<SfGrid ID="HeaderGrid" DataSource="@pcfHeader">
+    <GridColumns>
+        <GridColumn Field="CustomerNumber" HeaderText="Customer Number" Width="25"></GridColumn>
+        <GridColumn Field="CustomerName" HeaderText="Customer Name" Width="100"></GridColumn>
+        <GridColumn Field="PcfNumber" HeaderText="PCF Number" Width="25"></GridColumn>
+        <GridColumn Field="StartDate" HeaderText="Start Date" Width="25" Format="d"></GridColumn>
+        <GridColumn Field="EndDate" HeaderText="End Date" Width="25" Format="d"></GridColumn>
+
+        <!-- Status icon column using a template -->
+        <GridColumn HeaderText="" Width="10">
+            <Template>
+                @{
+                    // Determine the icon path based on the ApprovalStatus value
+                    var header = (PCFHeaderDTO)@context;
+                    string iconPath = header.ApprovalStatus.ToIconPath();
+                }
+                <img src="@iconPath" alt="@header.ApprovalStatus.ToString()" width="20" height="20" />
+            </Template>
+        </GridColumn>
+        <GridColumn Field="ApprovalStatus" HeaderText="Status" Width="50"></GridColumn>
+    </GridColumns>
+</SfGrid>
+
+
+
+
+<SfGrid ID="ItemGrid" DataSource="@pcfItemEntities" AllowSorting="true">
+
+    <GridColumns>
+        <GridColumn Field="ItemNum" HeaderText="Item Number" Width="120"></GridColumn>
+        <GridColumn Field="ItemDesc" HeaderText="Description" Width="150"></GridColumn>
+        <GridColumn Field="ProposedPrice" HeaderText="Proposed_Price" Format="C" Width="120"></GridColumn>
+        <GridColumn Field="AnnEstUnits" HeaderText="Annual Est Units" Width="120"></GridColumn>
+        <GridColumn Field="AnnEstDollars" HeaderText="Annual Est $" Format="C" Width="120"></GridColumn>
+    </GridColumns>
+</SfGrid>
+
+@code {
+    [Parameter] public int pcfNumber { get; set; } // Change type if needed
+    [Parameter] public string repID { get; set; } = "GUL";
+
+    public string pcfNum { get; set; }
+
+    private List<PCFItemEntity> pcfItemEntities;
+    private List<PCFHeaderDTO> pcfHeader;
+
+    // Connection string to connect to the SQL Server
+    private string connectionString = @"";
+    private string connectionName = "Development";
+
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Convert the integer pcfNumber to string
+        pcfNum = pcfNumber.ToString();
+        await LoadPCFHeader();
+        await LoadPCFItems();
+
+
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        connectionString = Configuration.GetConnectionString(connectionName);
+  
+    }
+
+    private async Task LoadPCFHeader()
+    {
+        using (var connection = new SqlConnection(connectionString))
+        {
+            var query = @"SELECT SRNum as RepID, CustNum as CustomerNumber, CustName as CustomerName,
+                            ProgSDate as StartDate,ProgEDate as EndDate, PCFNum as PcfNumber
+                            , CASE WHEN ProgEdate < getdate() then 4
+                                Else 3  END as ApprovalStatus
+                          FROM ProgControl
+                          WHERE PCFNum = @PCFNum
+                            ORDER BY CustName, CustNum, ProgSDate";
+
+            var parameters = new { PCFNum = pcfNum };
+
+            pcfHeader = (await connection.QueryAsync<PCFHeaderDTO>(query, parameters)).ToList();
+        }
+    }
+
+      private async Task LoadPCFItems()
+      {
+          using (var connection = new SqlConnection(connectionString))
+          {
+               var query = @"Select PCFNumber, ItemNum, CustNum, ItemDesc, ProposedPrice, AnnEstUnits, AnnEstDollars, LYPrice LYUnits, ID
+               From PCItems    where PCFNumber = @PcfNum";
+    
+               var parameters = new { PcfNum = pcfNum};
+    
+               pcfItemEntities = (await connection.QueryAsync<PCFItemEntity>(query, parameters)).ToList();
+           }
+       }
+
+
+}

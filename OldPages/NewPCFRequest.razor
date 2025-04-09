@@ -1,0 +1,374 @@
+﻿@page "/NewPCFRequest"
+@inject IUserService userServiceInstance
+@inject DbConnectionFactory connectionFactory
+@inject DataService dataServiceInstance
+@inject RepRepository repRepositoryInstance
+@inject CustomerService customerServiceInstance
+@using System.Security
+@using BlazorServerDatagridApp2.Data
+@using BlazorServerDatagridApp2.Models
+@using BlazorServerDatagridApp2.Services
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.DropDowns
+@using Syncfusion.Blazor.Layouts
+@using Syncfusion.Blazor.ProgressBar
+@using Syncfusion.Blazor.SplitButtons
+@using ChangeEventArgs = Microsoft.AspNetCore.Components.ChangeEventArgs
+@using ProgressEventArgs = Syncfusion.Blazor.SplitButtons.ProgressEventArgs
+@inject NavigationManager navigationManager
+@inject IJSRuntime JS 
+
+
+<PageTitle>Create New PCF</PageTitle>
+@if (connectionName == "Development")
+{
+    <h6 style="color: red; font-weight: bold;">Environment: @connectionName</h6>
+}
+
+
+<div class="e-card e-card-highlight" style="margin-bottom: 1rem; padding: 1rem;">
+    <h4 style="color: #0056b3;">The process to create a new PCF has changed</h4>
+    <p>Please review the following steps before proceeding:</p>
+</div>
+
+<SfSplitter Orientation="Orientation.Vertical" Height="600px" Width="90%">
+    <SplitterPanes>
+        <SplitterPane Size="25%" Min="60px">
+            <SfCard CssClass="step-card" style="font-size: 0.75rem; line-height: 1.2;">
+                <SfCardHeader>
+                    <h6 style="font-weight: bold;">Step 1: Download the New PCF Template</h6>
+                </SfCardHeader>
+                <SfCardContent CssClass="small-text">
+                    <p>
+                        This template will be pre-filled with Customer information and can optionally be pre-populated with the items and prices from the previous PCF for this customer.
+                        You will have the opportunity to select how the items and prices can be determined.
+                    </p>
+                </SfCardContent>
+            </SfCard>
+
+            <SfCard CssClass="step-card" style="font-size: 0.75rem; line-height: 1.2;">
+                <SfCardHeader>
+                    <h6 style="font-weight: bold;">Step 2: Fill in Header Sheet</h6>
+                </SfCardHeader>
+                <SfCardContent CssClass="small-text">
+                    <p>Fill in the necessary fields on the Header sheet.</p>
+                </SfCardContent>
+            </SfCard>
+
+            <SfCard CssClass="step-card" style="font-size: 0.75rem; line-height: 1.2;">
+                <SfCardHeader>
+                    <h6 style="font-weight: bold;">Step 3: Fill in Items and Prices</h6>
+                </SfCardHeader>
+                <SfCardContent CssClass="small-text">
+                    <p>Fill in the items and prices you are proposing to include in the PCF. Only the Item and Proposed Price columns are used in the PCF creation; other data is for reference only.</p>
+                </SfCardContent>
+            </SfCard>
+
+            <SfCard CssClass="step-card" style="font-size: 0.75rem; line-height: 1.2;">
+                <SfCardHeader>
+                    <h6 style="font-weight: bold;">Step 4: Save the Spreadsheet</h6>
+                </SfCardHeader>
+                <SfCardContent CssClass="small-text">
+                    <p>Save the spreadsheet with any name you prefer.</p>
+                </SfCardContent>
+            </SfCard>
+
+            <SfCard CssClass="step-card" style="font-size: 0.75rem; line-height: 1.2;">
+                <SfCardHeader>
+                    <h6 style="font-weight: bold;">Step 5: Upload the Spreadsheet</h6>
+                </SfCardHeader>
+                <SfCardContent CssClass="small-text">
+                    <p>Upload the spreadsheet. This action will automatically create a temporary PCF.</p>
+                </SfCardContent>
+            </SfCard>
+
+            <SfCard CssClass="step-card" style="font-size: 0.75rem; line-height: 1.2;">
+                <SfCardHeader>
+                    <h6 style="font-weight: bold;">Step 6: Review the Temporary PCF</h6>
+                </SfCardHeader>
+                <SfCardContent CssClass="small-text">
+                    <p>Review the temporary PCF for any issues and make corrections as needed.</p>
+                </SfCardContent>
+            </SfCard>
+
+            <SfCard CssClass="step-card" style="font-size: 0.75rem; line-height: 1.2;">
+                <SfCardHeader>
+                    <h6 style="font-weight: bold;">Step 7: Submit the PCF</h6>
+                </SfCardHeader>
+                <SfCardContent CssClass="small-text">
+                    <p>When satisfied with the temporary PCF, use the Upload PCF form to submit the PCF for approval.</p>
+                </SfCardContent>
+            </SfCard>
+
+        </SplitterPane>
+        <SplitterPane Size="75%" Min="60px">
+
+
+
+            @* Customer Selection *@
+
+            @if (IsLoading)
+            {
+                <p>Loading customers...</p>
+            }
+            else
+            {
+                <p></p>
+                <p></p>
+                <h6>Start by selecting a customer</h6>
+                <SfDropDownList TValue="string" TItem="Customer" DataSource="Customers" @bind-Value="SelectedCustNum" Placeholder="Choose a Customer">
+                    <DropDownListFieldSettings Text="CustNameWithNum" Value="CustNum"></DropDownListFieldSettings>
+                    <DropDownListEvents TValue="string" TItem="Customer" ValueChange="@(OnValueChangeCustomer)"></DropDownListEvents>
+                </SfDropDownList>
+            }
+            <!-- Circular Progress Bar -->
+
+
+            @if (IsCustomerSelected)
+            {
+                <p></p>
+                <h6>Select options for the template</h6>
+                <p></p>
+                <!-- Include Items from Previous PCF Checkbox -->
+                <SfCheckBox @bind-Checked="IncludePreviousPCF" @onchange="OnValueChangeIncludePCF">Include Items from previous PCF</SfCheckBox>
+            }
+
+            <!-- Previous PCF List and Pre-Populate Option (Conditional Display) -->
+            @if (IncludePreviousPCF)
+            {
+                <div class="conditional-section">
+                    <label for="previousPCFDropdown">Select Previous PCF:</label>
+                    <SfDropDownList TValue="string" TItem="PCFHeaderEntity" DataSource="@PreviousPCFs"
+                                    @bind-Value="SelectedPCFId" Placeholder="Choose a previous PCF">
+                        <DropDownListFieldSettings Text="DisplayNumAndDates" Value="PCFNum"></DropDownListFieldSettings>
+                    </SfDropDownList>
+
+                    <SfDropDownList TItem="string" TValue="string" @bind-Value="PricePopulationOption" DataSource="@(PriceOptions as IEnumerable<string>)" Placeholder="Select Price Population Option">
+                    </SfDropDownList>
+                </div>
+
+                <!--
+                <p>Optionally, you can include additional pricing reference fields on your template</p>
+                <div>
+                    <SfCheckBox @bind-Checked="IncludePreviousPcfPricingReferenceColumn">Include pricing from prior PCF reference column</SfCheckBox>
+                </div>
+                <div>
+                    <SfCheckBox @bind-Checked="IncludeBookPricingReferenceColumn">Include Book pricing reference column</SfCheckBox>
+                </div>
+                <div>
+                    <SfCheckBox @bind-Checked="IncludeCmaPricingReferenceColumn">Include CMA pricing reference column</SfCheckBox>
+                </div>
+                <div>
+                    <SfCheckBox @bind-Checked="IncludeItemSalesUnitsPriorCalendarYearColumn">Include sales units from last calendar year</SfCheckBox>
+                </div>
+                <div>
+                    <SfCheckBox @bind-Checked="IncludeItemSalesDollarsPriorCalendarYearColumn">Include sales dollars from last calendar year</SfCheckBox>
+                </div>
+                -->
+            }
+
+
+        </SplitterPane>
+
+    </SplitterPanes>
+</SfSplitter>
+
+<div class="control-wrapper">
+    <SfProgressButton @ref="progressButton" Content="@ButtonContent" IconCss="e-btn-sb-icons e-download-icon"
+                      IconPosition="IconPosition.Right"
+                      CssClass="e-hide-spinner"
+                      EnableProgress="true"
+                      IsPrimary="true" @onclick="HandleClick">
+        <ProgressButtonEvents OnBegin="BeginDL" OnEnd="EndDL"></ProgressButtonEvents>
+
+
+    </SfProgressButton>
+</div>
+@*
+<button @onclick="DownloadExcelFile">Download Excel</button>
+*@
+
+<div class="col-lg-3 col-md-3 col-3" align="center">
+    <SfProgressBar @ref="progressBar" Type="ProgressType.Circular" Value="20" Width="80px" Height="80px"
+                   StartAngle="180" EndAngle="180" CornerRadius="CornerType.Round"
+                   IsIndeterminate="true" Minimum="0" Maximum="100"
+                   Visible="false">
+        <ProgressBarAnimation Enable="true" Duration="2000" Delay="0"></ProgressBarAnimation>
+    </SfProgressBar>
+
+</div>
+
+
+@* ReSharper disable InconsistentNaming *@
+
+@code
+{
+    [Parameter] public string repCode { get; set; }
+    public List<Customer>? Customers { get; set; } = new();
+    public bool IsLoading { get; set; } = true;
+    public bool IsCustomerSelected { get; set; }
+
+    public string SelectedCustNum { get; set; } = string.Empty; // This will store the selected customer number
+    public bool IncludePreviousPCF { get; set; }
+    public string SelectedPCFId { get; set; } = string.Empty;
+    public string PricePopulationOption { get; set; } = string.Empty;
+    public List<PCFHeaderEntity> PreviousPCFs { get; set; } = new();
+    public bool IncludePreviousPcfPricingReferenceColumn { get; set; } = false;
+    public bool IncludeBookPricingReferenceColumn { get; set; } = false;
+    public bool IncludeCmaPricingReferenceColumn { get; set; } = false;
+    public bool IncludeItemSalesUnitsPriorCalendarYearColumn { get; set; } = false;
+    public bool IncludeItemSalesDollarsPriorCalendarYearColumn { get; set; } = false;
+    public SfProgressBar progressBar;
+    public string ButtonContent = "Download";
+    public SfProgressButton progressButton;
+
+    public void BeginDL(ProgressEventArgs args)
+    {
+        ButtonContent = "Downloading.....";
+    }
+
+    public void EndDL(ProgressEventArgs args)
+    {
+        ButtonContent = "Download Complete";
+    }
+
+    private async Task HandleClick()
+    {
+        // Start the progress;
+        await progressButton.StartAsync();
+
+        // Simulate a download task
+        await DownloadExcelFile();
+
+        // End the progress
+        await progressButton.EndProgressAsync();
+    }
+
+    // Connection string to connect to the SQL Server
+    //private string connectionString = @"";
+    private readonly string connectionName = "Development";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // connectionString = Configuration.GetConnectionString(connectionName);
+
+        await LoadCustomerList();
+        IsLoading = false;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        repCode = userServiceInstance.CurrentRep.RepCode;
+    }
+
+    private async Task LoadCustomerList()
+    {
+        Customers = await dataServiceInstance.GetCustomersForRepAsync();
+        foreach (var customer in Customers)
+        {
+            customer.CustName = SecurityElement.Escape(customer.CustName);
+        }
+    }
+
+    public void OnValueChangeCustomer(ChangeEventArgs<string, Customer> args)
+    {
+        SelectedCustNum = args.Value;
+        IncludePreviousPCF = false;
+        // Write to the console
+        Console.WriteLine($"Selected CustNum: {SelectedCustNum}");
+        IsCustomerSelected = true;
+        StateHasChanged();
+    }
+
+
+    public async Task OnValueChangeIncludePCF(ChangeEventArgs args)
+    {
+        IncludePreviousPCF = (bool)args.Value;
+
+        if (IncludePreviousPCF)
+        {
+            PreviousPCFs = await dataServiceInstance.GetPCFsForCustNumAsync(SelectedCustNum);
+        }
+
+        // Write to the console
+        //Console.WriteLine($"Selected CustNum: {SelectedCustNum}");
+        //IsCustomerSelected = true;
+        //StateHasChanged();
+    }
+
+
+    private readonly List<string> PriceOptions = new()
+    {
+        "Pre-populate Proposed Prices from PCF selected above",
+        "Pre-populate Proposed Prices from CMA",
+        "Pre-populate Proposed Prices from Book prices",
+        "Do not pre-populate Proposed Prices"
+    };
+
+
+    // Method to handle form submission
+    private void SubmitForm()
+    {
+        // Handle the form submission logic here
+        // Check values of IncludePreviousPCF, IncludeCMA, IncludeBookPrice, etc.
+    }
+
+
+    private List<PCF> PreviousPCFxs = new()
+    {
+        new PCF { PCFId = "PCF001", EffectiveDate = DateTime.Now.AddYears(-2), ExpirationDate = DateTime.Now.AddMonths(-6) },
+        new PCF { PCFId = "PCF002", EffectiveDate = DateTime.Now.AddYears(-1), ExpirationDate = DateTime.Now.AddMonths(-3) },
+        new PCF { PCFId = "PCF003", EffectiveDate = DateTime.Now.AddMonths(-18), ExpirationDate = DateTime.Now.AddMonths(-1) }
+    };
+
+    public class PCF
+    {
+        public string PCFId { get; set; }
+        public DateTime EffectiveDate { get; set; }
+        public DateTime ExpirationDate { get; set; }
+        public string DisplayName => $"{PCFId} (Exp: {ExpirationDate.ToShortDateString()})";
+    }
+
+    private async Task OnSubmit()
+    {
+        // Call the CreatePricingWorkbookForDownload method
+        //var result = await excelGenerator.CreatePricingWorkbookForDownload("selectedCustomer", "selectedPCID");
+
+        // Prepare the download
+        //using (var stream = result.FileStream)
+        // {
+        // Read the stream into a byte array
+        //    byte[] buffer = new byte[stream.Length];
+        //    await stream.ReadAsync(buffer, 0, buffer.Length);
+
+        // Trigger file download in the browser
+        //    var fileName = "PCF_Template.xlsx";
+        //    await JS.InvokeVoidAsync("downloadFile", buffer, fileName, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        //    }
+    }
+
+    public async Task DownloadExcelFile()
+    {
+        StateHasChanged();
+        // Create ExcelGenerator instance using injected services
+        var excelGenerator = new ExcelGenerator(dataServiceInstance, userServiceInstance, repRepositoryInstance, customerServiceInstance);
+
+        // Generate the .xlsm file
+
+        var fileResult = await excelGenerator.CreatePricingWorkbookForDownload(SelectedCustNum, SelectedPCFId);
+
+        // Convert FileStreamResult to a byte array
+        // await using var memoryStream = new MemoryStream();
+        // await fileResult.FileStream.CopyToAsync(memoryStream);
+        //var fileContent = memoryStream.ToArray();
+
+        // Trigger JavaScript download
+        //await JS.InvokeVoidAsync("downloadFile", "PCF_Template.xlsm", "application/vnd.ms-excel.sheet.macroEnabled.12", fileContent);
+        //await JS.SaveAs("Sample.xlsx", fileResult);
+        //string repCode = "GUL"; // Already set when logging in
+        var selectedCustNum = SelectedCustNum.Trim(); // Ensure SelectedCustNum is trimmed
+        var currentDate = DateTime.Now.ToString("yyyyMMdd");
+        var fileName = $"{repCode}_{selectedCustNum}_PcfTemplate_{currentDate}.xlsm";
+        await JS.InvokeVoidAsync("downloadFile", fileName, "application/vnd.ms-excel.sheet.macroEnabled.12", fileResult);
+    }
+}

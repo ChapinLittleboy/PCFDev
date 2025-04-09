@@ -1,0 +1,34 @@
+﻿@page "/ssrstest/{StartDate}/{EndDate}"
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<h3>SSRS Report Viewer</h3>
+
+
+<p>Click the button below to view the report in a new tab:</p>
+
+<button @onclick="OpenReportInNewTab">View Report</button>
+
+@code {
+    [Parameter] public string? StartDate { get; set; }
+    [Parameter] public string? EndDate { get; set; }
+
+    private string ReportUrl;
+
+    protected override void OnInitialized()
+    {
+        string ssrsServer = "http://ciisql10/ReportServer";
+        string reportPath = "/Chapin/Sales/Open Order Report - Detail v3";
+
+        StartDate ??= DateTime.Today.AddDays(-7).ToString("yyyy-MM-dd");
+        EndDate ??= DateTime.Today.ToString("yyyy-MM-dd");
+
+        ReportUrl = $"{ssrsServer}?{reportPath}&StartDueDate={StartDate}&EndDueDate={EndDate}&rs:Command=Render";
+    }
+
+    private async Task OpenReportInNewTab()
+    {
+       // Navigation.NavigateTo(ReportUrl, forceLoad: true);
+        await JS.InvokeVoidAsync("open", ReportUrl, "_blank");
+    }
+}

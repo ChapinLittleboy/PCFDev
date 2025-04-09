@@ -1,0 +1,269 @@
+﻿@page "/admin/role-management"
+@using AutoMapper
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.Extensions.Configuration.UserSecrets
+@using BlazorServerDatagridApp2.Models
+@using BlazorServerDatagridApp2.Data
+@using Action = Syncfusion.Blazor.Grids.Action
+@inject IUserService UserService
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IMapper Mapper
+@inject NavigationManager NavigationManager
+
+
+
+<h3>Role Management</h3>
+
+
+
+@if (!IsAdministrator)
+{
+    <div class="alert alert-danger" role="alert">
+        <h4 class="alert-heading">Access Denied</h4>
+        <p>You do not have permission to view this page. Please contact an administrator if you believe this is an error.</p>
+    </div>
+}
+else
+{
+    <div>
+        <h4>Users</h4>
+        <SfGrid DataSource="@Users" AllowSorting="true" Toolbar="@(new List<string> { "Add", "Edit", "Delete", "Update", "Cancel" })"
+
+        EditSettings="@editSettings" @ref="UsersGrid">
+
+            <GridEvents OnActionComplete="@ActionCompleteHandler" TValue="User"/>
+
+
+            <GridColumns>
+                <GridColumn Field="UserId" IsPrimaryKey="true" HeaderText="ID" Width="50" TextAlign="TextAlign.Center" Visible="false"/>
+                <GridColumn Field="DomainId" HeaderText="Domain ID" Width="200"/>
+                <GridColumn Field="Username" HeaderText="Username" Width="200"/>
+                <GridColumn Field="SalesManagerInitials" HeaderText="SalesMgr Initials" Width="100"/>
+
+                <GridForeignColumn Field="RoleId"
+                HeaderText="Role"
+                ForeignKeyField="RoleId"
+                ForeignKeyValue="RoleName"
+                ForeignDataSource="@Roles"
+                EditType="EditType.DropDownEdit"
+                Width="150">
+                </GridForeignColumn>
+
+            </GridColumns>
+        </SfGrid>
+    </div>
+
+
+
+    <div>
+        <h4>User Hierarchies</h4>
+        <SfGrid DataSource="@UserHierarchies" AllowSorting="true" Toolbar="@(new List<string> { "Add", "Edit", "Delete", "Update", "Cancel" })"
+                EditSettings="@editSettings" @ref="UserHierarchiesGrid" >
+            <GridEvents OnActionComplete="@UserHierarchiesActionCompleteHandler" TValue="UserHierarchyDTO" />
+            
+            <GridColumns>
+                <GridColumn Field="ManagerDomainId" HeaderText="Manager Domain ID" Width="200" IsPrimaryKey="true"/>
+                <GridColumn Field="SubordinateDomainId" HeaderText="Subordinate Domain ID" Width="200"/>
+            </GridColumns>
+        </SfGrid>
+    </div>
+
+}
+
+
+
+@code {
+    private SfGrid<User> UsersGrid;
+    private SfGrid<UserHierarchyDTO> UserHierarchiesGrid;
+
+    private List<User> Users = new();
+    private List<UserHierarchyDTO> UserHierarchies = new();
+    private static List<Role> Roles = new();
+
+    private GridEditSettings editSettings = new() { AllowAdding = true, AllowEditing = true, AllowDeleting = false };
+
+    private bool IsAdministrator = false;
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await UserService.InitializeUserAsync();
+
+        // Check if the current user has the Administrator role
+        IsAdministrator = UserService.UserRole == "Administrator";
+
+        if (!UserService.IsUserInRole("Administrator"))
+        {
+            NavigationManager.NavigateTo("/", true);
+        }
+
+        Users = await UserService.GetAllUsersAsync();
+        var userHierarchies = await UserService.GetAllUserHierarchiesAsync();
+        UserHierarchies = Mapper.Map<List<UserHierarchyDTO>>(userHierarchies);
+       
+        Roles = await UserService.GetAllRolesAsync();
+
+
+    }
+
+
+
+
+      private async Task ActionCompleteHandler(ActionEventArgs<User> args)
+      {
+          if (args.RequestType == Action.Save)
+          {
+              // 'save' occurs after editing or adding a row 
+              // You can detect the difference between add vs edit with 'args.Action'
+              if (args.Action == "Edit" && args.Data != null)
+              {
+                  // The 'args.Data' property holds the updated user object
+                  var updatedUser = args.Data;
+
+                  // EF update pattern:
+                  // 1. Attach the entity to the DbContext
+                  // 2. Mark it as modified
+                  // 3. Save changes
+
+                  // Example:
+                  // _db.Users.Update(updatedUser);
+                  // await _db.SaveChangesAsync();
+
+                  // Or if you have a service:
+                  await UserService.UpdateUserAsync(args.Data);
+                  
+                  Console.WriteLine($"Updated user: {updatedUser.Username} with new RoleId {updatedUser.RoleId}");
+                Users = await UserService.GetAllUsersAsync();
+                await UsersGrid.Refresh();
+              }
+              else if (args.Action == "Add" && args.Data != null)
+              {
+                  // A newly added row
+                  // var newUser = args.Data;
+                  // _db.Users.Add(newUser);
+                  // await _db.SaveChangesAsync();
+                  await UserService.AddUserAsync(args.Data);
+                  
+                  //Console.WriteLine($"Added new user: {addedUser.Username} with  RoleId {updatedUser.RoleId}");
+                  Users = await UserService.GetAllUsersAsync();
+                  await UsersGrid.Refresh();
+              }
+          }
+          else if (args.RequestType == Action.Delete && args.Data != null)
+          {
+              // Deletion
+              // var deletedUser = args.Data;
+              // _db.Users.Remove(deletedUser);
+              // await _db.SaveChangesAsync();
+          }
+
+          // Optionally, you can re-load from DB & refresh the grid:
+        //Users = await UserService.GetAllUsersAsync();
+         //  await UsersGrid.Refresh();
+      }
+
+    private async Task UserHierarchiesActionCompleteHandler(ActionEventArgs<UserHierarchyDTO> args)
+    {
+        if (args.RequestType == Action.Save)
+        {
+            if (args.Action == "Edit" && args.Data != null)
+            {
+                var entry = args.Data;
+                if (entry != null)
+                {
+                    var manager = Users.FirstOrDefault(u => u.DomainId == entry.ManagerDomainId);
+                    var subordinate = Users.FirstOrDefault(u => u.DomainId == entry.SubordinateDomainId);
+
+                    if (manager == null || subordinate == null)
+                    {
+                        throw new InvalidOperationException("Both Manager and Subordinate must exist in the Users table.");
+                    }
+
+                    // Add or Update UserHierarchy
+                    var existingHierarchy = await UserService.GetUserHierarchyAsync(manager.UserId, subordinate.UserId);
+                    if (existingHierarchy == null)
+                    {
+                        await UserService.AddUserHierarchyAsync(new UserHierarchy
+                        {
+                            ManagerId = manager.UserId,
+                            SubordinateId = subordinate.UserId
+                        });
+                    }
+                    else
+                    {
+                        // Update logic if needed (unlikely for hierarchies)
+                        existingHierarchy.ManagerId = manager.UserId;
+                        existingHierarchy.SubordinateId = subordinate.UserId;
+                        await UserService.UpdateUserHierarchyAsync(existingHierarchy);
+                    }
+                }
+
+            }
+
+            else if (args.Action == "Add" && args.Data != null)
+            {
+                // A newly added row
+                // var newUser = args.Data;
+                // _db.Users.Add(newUser);
+                // await _db.SaveChangesAsync();
+                var entry2 = args.Data;
+                if (entry2 != null)
+                {
+                    var manager = Users.FirstOrDefault(u => u.DomainId == entry2.ManagerDomainId);
+                    var subordinate = Users.FirstOrDefault(u => u.DomainId == entry2.SubordinateDomainId);
+
+                    if (manager == null || subordinate == null)
+                    {
+                        throw new InvalidOperationException("Both Manager and Subordinate must exist in the Users table.");
+                    }
+
+                    var newHierarchy = new UserHierarchy
+                    {
+                        ManagerId = manager.UserId,
+                        SubordinateId = subordinate.UserId
+                    };
+                    await UserService.AddUserHierarchyAsync(newHierarchy);
+
+                    //Console.WriteLine($"Added new user: {addedUser.Username} with  RoleId {updatedUser.RoleId}");
+                    var userHierarchies = await UserService.GetAllUserHierarchiesAsync();
+                    UserHierarchies = Mapper.Map<List<UserHierarchyDTO>>(userHierarchies);
+                    await UserHierarchiesGrid.Refresh();
+                }
+
+            }
+            else if (args.RequestType == Action.Delete)
+            {
+                var entry = args.Data;
+                if (entry != null)
+                {
+                    var manager = Users.FirstOrDefault(u => u.DomainId == entry.ManagerDomainId);
+                    var subordinate = Users.FirstOrDefault(u => u.DomainId == entry.SubordinateDomainId);
+
+                    if (manager == null || subordinate == null)
+                    {
+                        throw new InvalidOperationException("Both Manager and Subordinate must exist in the Users table.");
+                    }
+
+                    await UserService.DeleteUserHierarchyAsync(manager.UserId, subordinate.UserId);
+                }
+            }
+        }
+
+        if (args.RequestType == Action.Refresh)
+        {
+            
+        }
+        else
+        {
+            // Reload data
+           // UserHierarchies = await UserService.GetAllUserHierarchiesAsync()
+            //    .ContinueWith(task => task.Result.Select(uh => new UserHierarchyDTO
+            //    {
+            //        ManagerDomainId = uh.Manager.DomainId,
+            //        SubordinateDomainId = uh.Subordinate.DomainId
+            //    }).ToList());
+            //await UserHierarchiesGrid.Refresh();
+        }
+    }
+}

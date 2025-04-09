@@ -1,0 +1,80 @@
+﻿@page "/fileupload"
+
+@using System.Linq.Expressions
+@using System.Numerics
+@using BlazorServerDatagridApp2.Data
+@using FileProcessingLib
+@inject IConfiguration Configuration
+@using Syncfusion.Blazor.Inputs
+
+<SfUploader AutoUpload="true" @ref="Uploader" AllowedExtensions=" .xls, .xlsx, .xlsm">
+    <UploaderEvents ValueChange="OnChange"></UploaderEvents>
+</SfUploader>
+
+
+@if (!string.IsNullOrEmpty(SuccessMessage))
+{
+    <div class="alert alert-success">@SuccessMessage</div>
+}
+@if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <div class="alert alert-danger">@ErrorMessage</div>
+}
+
+
+
+@code {
+    private SfUploader Uploader;
+    public string fileName = string.Empty;
+    public string filePathAndName = string.Empty;
+    public string SuccessMessage = string.Empty;
+    public string ErrorMessage = string.Empty;
+
+    private async Task OnChange(UploadChangeEventArgs args)
+    {
+        // Check if files exist and if their streams are not null
+
+        try
+        {
+            foreach (var file in args.Files)
+            {
+                var basePath = Configuration["FileStoragePath"];  // set to C:\SharedUploads
+                fileName = file.FileInfo.Name;
+                var path = Path.Combine(basePath, file.FileInfo.Name);
+                filePathAndName = path;
+                FileStream filestream = new FileStream(path, FileMode.Create, FileAccess.Write);
+                await file.File.OpenReadStream(long.MaxValue).CopyToAsync(filestream);
+                filestream.Close();
+            }
+
+            var processor = new ExcelToPcfProcessor();
+            try
+            {
+                var returnvar = processor.ProcessExcelFile(filePathAndName);
+                Console.WriteLine($"File processed successfully and created PCF {returnvar.PcfNumber.ToString()}.");
+                
+                if (returnvar.Status == ProcessStatus.Success)
+                {
+                    SuccessMessage = $"PCF {returnvar.PcfNumber} has been successfully created.";
+                }
+                else
+                {
+                    ErrorMessage = $"Failed to process file: {string.Join(", ", returnvar.Errors)}";
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+
+        StateHasChanged();
+    }
+
+}
+

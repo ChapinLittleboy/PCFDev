@@ -1,0 +1,98 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>BlazorServerDatagridApp2</AssemblyName>
+    <UserSecretsId>533eb068-cb82-4d3b-a4dc-23904911eab8</UserSecretsId>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <NoWarn>1701;1702;10012;RZ10012</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <NoWarn>1701;1702;10012;RZ10012</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="objxxx\**" />
+    <Content Remove="objxxx\**" />
+    <EmbeddedResource Remove="objxxx\**" />
+    <None Remove="objxxx\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Data\WeatherForecast.cs" />
+    <Compile Remove="Data\WeatherForecastService.cs" />
+    <Compile Remove="Services\ExcelGenerator - Original.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="OldPages\ActivePCFs.razor" />
+    <Content Remove="OldPages\CreatePcfFromCMA.razor" />
+    <Content Remove="OldPages\DataGridExample.razor" />
+    <Content Remove="OldPages\ExpiredPCFs.razor" />
+    <Content Remove="OldPages\ExpiringPCFs.razor" />
+    <Content Remove="OldPages\FileUpload.razor" />
+    <Content Remove="OldPages\FuturePCFs.razor" />
+    <Content Remove="OldPages\HeaderForm.razor" />
+    <Content Remove="OldPages\NewPCFRequest.razor" />
+    <Content Remove="OldPages\PcfData2.razor" />
+    <Content Remove="OldPages\Testcodegen.razor" />
+    <Content Remove="OldPages\Updated_PcfData2.razor" />
+    <Content Remove="Pages\Counter.razor" />
+    <Content Remove="Pages\FetchData.razor" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Audit.NET" Version="27.3.2" />
+    <PackageReference Include="Audit.NET.SqlServer" Version="27.3.2" />
+    <PackageReference Include="AutoMapper" Version="13.0.1" />
+    <PackageReference Include="Blazored.FluentValidation" Version="2.2.0" />
+    <PackageReference Include="Dapper" Version="2.1.35" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Negotiate" Version="8.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="8.0.10" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+    <PackageReference Include="Syncfusion.Blazor" Version="27.2.2" />
+    <PackageReference Include="Syncfusion.Blazor.Themes" Version="27.2.2" />
+    <PackageReference Include="Syncfusion.Licensing" Version="27.2.2" />
+    <PackageReference Include="Syncfusion.Pdf.Imaging.Net.Core" Version="27.2.2" />
+    <PackageReference Include="Syncfusion.Pdf.Net.Core" Version="27.2.2" />
+    <PackageReference Include="Syncfusion.XlsIO.Net.Core" Version="27.2.2" />
+    <PackageReference Include="System.Drawing.Common" Version="9.0.1" />
+	
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="OldPages\" />
+    <Folder Include="wwwroot\uploads\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  
+</Project>

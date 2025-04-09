@@ -1,0 +1,446 @@
+﻿
+@page "/PCFs"
+@using FilteringEventArgs = Syncfusion.Blazor.Grids.FilteringEventArgs
+
+
+@inject DataService DataService
+@inject IConfiguration Configuration
+@inject IUserService UserService
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
+@inject NavigationManager NavigationManager
+@inject CustomerService CustomerService
+@inject IJSRuntime JSRuntime
+
+
+
+<h3>Pricing Control Forms</h3>
+
+<div>
+    <div class="active-filters">
+        <button @onclick="ClearFilters">Clear Filters</button>
+        
+        <!--
+        <span class="divider">|</span>
+        <strong class="small-text">Active Filters:</strong>
+        <span class="small-text">@activeFilters</span>
+        -->
+    </div>
+
+</div>
+<br/>
+<label>Select Database: </label>
+<select  @onchange="OnDatabaseChange">
+    <option value="Chapin">Chapin</option>
+
+</select>
+<!--
+<div>
+<SfDropDownList TValue="string" TItem="StatusOptions" @bind-Value="selectedPcfStatus" DataSource="@pcfStatusOptions" Placeholder="Select PCF Status" EnablePersistence="true">
+<DropDownListFieldSettings Value="StatusCode" Text="StatusCode"></DropDownListFieldSettings>
+<DropDownListEvents TValue="string" TItem="StatusOptions" ValueChange="OnPcfStatusChange" ></DropDownListEvents>
+</SfDropDownList>
+</div>
+-->
+@if (isLoading)
+{
+    <div>Loading...</div>
+}
+else
+{
+    <div>
+        <SfGrid ID="PcfsGrid" @ref="MyGrid" DataSource="@pcfHeaders" Height="600px" Width="100%" CssClass="custom-grid" 
+        AllowFiltering="true" AllowMultiSorting="true" AllowSorting="true"
+        AllowPaging="true" EnablePersistence="true" >
+            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel"></GridFilterSettings>
+            
+
+            <GridSortSettings>
+                <GridSortColumns>
+                    <GridSortColumn Field="ApprovalStatus" Direction="SortDirection.Ascending"></GridSortColumn>
+                    <GridSortColumn Field="CustomerName" Direction="SortDirection.Ascending"></GridSortColumn>
+                </GridSortColumns>
+            </GridSortSettings>
+            <GridEvents Filtering="FilteringHandler" TValue="PCFHeaderDTO"></GridEvents>
+            <GridPageSettings PageSize="200" PageSizes="true" PageCount="8"></GridPageSettings>
+            <GridColumns>
+                <GridColumn Field="CustomerNumber" HeaderText="Cust Num" Width="8%" TextAlign="TextAlign.Left"></GridColumn>
+                <GridColumn Field="CustomerName" HeaderText="Customer Name" Width="15%" TextAlign="TextAlign.Left"></GridColumn>
+                <GridColumn Field="StartDate" HeaderText="Start Date" Format="d" Width="8%" TextAlign="TextAlign.Center"></GridColumn>
+                <GridColumn Field="EndDate" HeaderText="End Date" Format="d" Width="8%" TextAlign="TextAlign.Center"></GridColumn>
+                <GridColumn Field="PcfNumber" HeaderText="PCF Number" Width="8%" TextAlign="TextAlign.Center" IsPrimaryKey="true"></GridColumn>
+                <!-- Status icon column using a template -->
+                <GridColumn Field="ApprovalStatus" HeaderText="Stat" FilterSettings="@(new FilterSettings { Type = Syncfusion.Blazor.Grids.FilterType.CheckBox })" Width="100">
+                    <Template>
+                        @{
+                            var header = (PCFHeaderDTO)@context;
+                            string status = header.ApprovalStatus.ToString();
+                            @if (status == "New")
+                            {
+                                <div class="statusback e-newcolor">
+                                    <span class="statustxt e-newcolor">@header.ApprovalStatus.ToString()</span>
+                                </div>
+                            }
+                            else if (status == "Approved")
+                            {
+                                <div class="statusback e-approvedcolor">
+                                    <span class="statustxt e-approvedcolor">@header.ApprovalStatus.ToString()</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="statusback e-expiredcolor">
+                                    <span class="statustxt e-expiredcolor">@header.ApprovalStatus.ToString()</span>
+                                </div>
+                            }
+
+                        }
+
+
+                    </Template>
+                </GridColumn>
+
+                <GridColumn Field="RepID" HeaderText="Rep ID" Width="8%" TextAlign="TextAlign.Left"></GridColumn>
+                <GridColumn Field="BuyingGroup" HeaderText="BuyGroup" Width="8%" TextAlign="TextAlign.Left"></GridColumn>
+                <GridColumn Field="PcfType" HeaderText="PCF Type" Width="8%" TextAlign="TextAlign.Left"></GridColumn>
+                <GridColumn Field="MarketType" HeaderText="Market" Width="8%" TextAlign="TextAlign.Left"></GridColumn>
+                <GridColumn Field="SalesManager" HeaderText="SalesMgr" Width="8%"></GridColumn>
+
+                <GridColumn HeaderText="Action!" Width="7%">
+                    <Template Context="pcfObj">
+                        <SfButton CssClass="custom-edit-button e-small" @onclick="() => NavigateToPCFDetails(((PCFHeaderDTO)pcfObj).PcfNumber)">Edit</SfButton>
+                    </Template>
+                </GridColumn>
+
+            </GridColumns>
+        </SfGrid>
+    </div>
+}
+<style>
+    /* Grid base styles */
+    .e-grid {
+        max-width: 100% !important;
+        overflow-x: auto !important;
+    }
+
+        .e-grid .e-headercelldiv {
+            font-size: 12px;
+        }
+
+        .e-grid .e-rowcell {
+            font-size: 12px;
+        }
+
+    /* Custom grid styling */
+    .custom-grid {
+        width: 100% !important;
+        overflow-x: auto !important;
+    }
+
+        .custom-grid .e-grid .e-row,
+        .custom-grid .e-rowcell,
+        .custom-grid .e-headercell {
+            height: 16px !important;
+            line-height: 14px !important;
+            font-size: 10px !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .custom-grid .e-grid .e-headercell {
+            height: 25px !important;
+        }
+
+        /* Cell content vertical alignment */
+        .custom-grid .e-rowcell > div,
+        .custom-grid .e-headercell > div {
+            display: flex;
+            align-items: center;
+            height: 100%;
+        }
+
+    /* Status styles */
+    .statusback {
+        position: relative;
+        height: 14px !important;
+        border-radius: 5px;
+        width: 64px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: 0;
+        padding: 0 4px;
+    }
+
+        .statusback.e-newcolor {
+            background-color: #ffd7cc;
+            color: #e60000;
+        }
+
+        .statusback.e-approvedcolor {
+            background-color: #ccffcc;
+            color: #00cc00;
+        }
+
+        .statusback.e-expiredcolor {
+            background-color: lightgray;
+            color: black;
+        }
+
+    .statustxt {
+        text-align: center;
+        font-size: 9px;
+        line-height: 14px;
+    }
+
+    /* Button styles */
+    .small-button {
+        padding: 4px 6px;
+        font-size: 12px;
+        height: 20px;
+        min-width: 24px;
+    }
+
+    .button-section {
+        width: 80%;
+        margin: auto;
+    }
+
+    .button-container {
+        display: flex;
+        justify-content: left;
+        align-items: center;
+        height: 80%;
+    }
+
+    .custom-edit-button {
+        background-color: lightblue;
+        color: black;
+        border: 1px solid #0056b3;
+        white-space: nowrap;
+        min-width: 40px !important;
+    }
+
+    #button-control .col-xs-12 {
+        margin: 15px 0;
+    }
+
+    .small-text {
+        font-size: 0.8rem;
+    }
+
+    /* Button icons font */
+    @@font-face {
+        font-family: 'button-icons';
+        src: url(data:application/x-font-ttf;charset=utf-8;base64,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) format('truetype');
+        font-weight: normal;
+        font-style: normal;
+    }
+
+    .e-btn-sb-icons {
+        font-family: 'button-icons';
+        line-height: 1;
+        font-style: normal;
+        font-weight: normal;
+        font-variant: normal;
+        text-transform: none;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    .e-play-icon::before {
+        content: '\e701';
+    }
+
+    .e-pause-icon::before {
+        content: '\e705';
+    }
+
+    .e-open-icon::before {
+        content: '\e70d';
+    }
+
+    .e-add-icon::before {
+        content: '\e70a';
+    }
+    .e-grid .e-headercell .e-filtered::before {
+        color: red; /* or add a dot, background, etc. */
+        font-weight: bold;
+    }
+
+    /* Responsive styles */
+    @@media screen and (max-width: 1200px) {
+        .custom-grid .e-rowcell,
+        .custom-grid .e-headercell {
+            font-size: 9px !important;
+            padding: 1px 3px !important;
+        }
+
+        .statusback {
+            width: 50px;
+        }
+    }
+
+    @@media screen and (max-width: 768px) {
+        .custom-grid .e-rowcell,
+        .custom-grid .e-headercell {
+            font-size: 8px !important;
+            padding: 1px 2px !important;
+        }
+    }
+
+
+
+</style>
+
+
+@code {
+    [Inject] PCFPageState PageState { get; set; }
+    private List<PCFHeaderDTO> pcfHeaders;
+    private string selectedPcfStatus = "All";
+    private string SelectedDatabase { get; set; } = "Chapin";
+    private string userName;
+    private bool isLoading = false;
+    private SfGrid<PCFHeaderDTO> MyGrid;
+    private string databaseName = "custinfo_zbldb";   // set the default to the dev db
+    string databaseKey = "PCFDB";
+    // private List<int> AccessibleCustomers;     
+    private string activeFilters = "None"; // Default text
+
+    private GridFilterSettings filterSettings = new GridFilterSettings();
+  
+ 
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (UserService.CurrentUser == null)
+        {
+
+            await UserService.InitializeUserAsync(); // Ensure initialization completes
+
+        }
+        userName = UserService.UserName;
+
+        UserService.SetDatabaseNames(SelectedDatabase);
+        // AccessibleCustomers = UserService.GetAccessibleCustomers(UserService.DomainUserName);
+        //  Console.WriteLine($"Accessible Customers: {string.Join(", ", AccessibleCustomers)}");
+
+        await LoadPCFHeaders();
+        // Set initial filter
+
+
+    }
+
+    private async Task LoadPCFHeaders()
+    {
+        isLoading = true;
+        await InvokeAsync(StateHasChanged);
+
+        databaseKey = SelectedDatabase switch
+        {
+            "Chapin" => "PCFDB",
+            "Heath" => "PCFDBHeath",
+            _ => "PCFDB"
+        };
+
+        // Fetch the database name using the configuration
+        string databaseName = Configuration.GetSection("DBNames")[databaseKey];
+
+        pcfHeaders = await DataService.GetPCFHeadersAsync(selectedPcfStatus);
+        // Assuming pcfHeaders is your list of PCFHeaderDTO
+        //var tasks = pcfHeaders.Select(async phDTO =>
+        //{
+        //     phDTO.CustomerInfo = await CustomerService.GetSalesManagerForCustomerAsync(phDTO.CustomerNumber);
+        // });
+
+        //  await Task.WhenAll(tasks);
+
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async void OnDatabaseChange(ChangeEventArgs e)
+    {
+        SelectedDatabase = e.Value?.ToString();
+        UserService.SetDatabaseNames(SelectedDatabase);
+        await LoadPCFHeaders();
+    }
+
+    public async Task OnPcfStatusChange(ChangeEventArgs<string, StatusOptions> args)
+    {
+        selectedPcfStatus = args?.Value?.ToString();
+        isLoading = true;
+        StateHasChanged();
+        await LoadPCFHeaders();
+        isLoading = false;
+    }
+
+    private  void NavigateToPCFDetails(string pcfNumber)
+    {
+        //NavigationManager.NavigateTo($"/PCFEditor/{pcfNumber}");
+        // databaseName = Configuration.GetSection("DBNames")[databaseName];
+
+        //   var parameters = new Dictionary<string, object>
+        //   {
+        //       { "pcfNumber", pcfNumber },
+        //       { "databaseName", databaseName }
+        //   };
+
+        NavigationManager.NavigateTo($"/PCFEditor/{pcfNumber}");
+
+    }
+    public class StatusOptions
+    {
+        public string StatusCode { get; set; }
+    }
+    private List<StatusOptions> pcfStatusOptions = new List<StatusOptions>
+    {
+        new StatusOptions() {StatusCode = "New" },
+        new StatusOptions() {StatusCode = "Active" },
+        new StatusOptions() {StatusCode = "Future" },
+        new StatusOptions() {StatusCode = "Expired" },
+        new StatusOptions() {StatusCode = "All" }
+    };
+
+
+
+
+    private async Task ClearFilters()
+    {
+        await MyGrid.ClearFilteringAsync();
+        //await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "PcfsGrid");
+       // await JSRuntime.InvokeVoidAsync("location.reload");
+       // activeFilters = "None";
+       // StateHasChanged();
+    }
+
+    private void UpdateActiveFilters()
+    {
+        if (MyGrid != null && MyGrid.FilterSettings.Columns.Any())
+        {
+            var filters = MyGrid.FilterSettings.Columns
+                .Select(f => $"{f.Field}: {string.Join(", ", f.Value)}")
+                .ToList();
+
+            activeFilters = string.Join(" | ", filters);
+        }
+        else
+        {
+            activeFilters = "None";
+        }
+
+        StateHasChanged(); // Update UI
+    }
+    public void FilteringHandler(FilteringEventArgs args)
+    {
+      
+            UpdateActiveFilters();
+        
+    }
+}
+
+

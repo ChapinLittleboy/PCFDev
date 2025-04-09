@@ -1,0 +1,36 @@
+﻿@page "/createPcfFromCMA"
+
+@using System.Linq.Expressions
+@using System.Numerics
+@using BlazorServerDatagridApp2.Data
+@using Syncfusion.Blazor.Inputs
+
+<h3>Create PCF from CMA</h3>
+<h5>This functionality is restricted to Sales Managers and Authorized Sales Staff only!</h5>
+
+
+@code {
+    private SfUploader Uploader;
+
+    private async Task OnChange(UploadChangeEventArgs args)
+    {
+        // Check if files exist and if their streams are not null
+
+        try
+        {
+            foreach (var file in args.Files)
+            {
+                var path = Path.Combine("wwwroot/uploads", file.FileInfo.Name);
+                FileStream filestream = new FileStream(path, FileMode.Create, FileAccess.Write);
+                await file.File.OpenReadStream(long.MaxValue).CopyToAsync(filestream);
+                filestream.Close();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+
+    }
+
+}

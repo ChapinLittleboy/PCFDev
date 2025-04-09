@@ -1,0 +1,84 @@
+﻿@page "/pricinglookup"
+@using Syncfusion.Blazor.Grids
+@using Syncfusion.Blazor.DropDowns
+@using System.Data.SqlClient
+@using Syncfusion.Blazor.RichTextEditor
+@using Syncfusion.Blazor.Lists
+@using Syncfusion.Blazor.Grids
+@inject IJSRuntime JSRuntime
+@inject DataService DataService
+
+<h1>Customer Item Price Lookup</h1>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <SfDropDownList TValue="string" TItem="PcfCustomer" Placeholder="Select Customer" DataSource="@Customers" @bind-Value="@SelectedCustomer">
+            <DropDownListFieldSettings Value="CustNum" Text="CustName"></DropDownListFieldSettings>
+        </SfDropDownList>
+    </div>
+    <div class="col-md-6">
+        <SfMultiSelect TValue="string[]" TItem="PcfItem" Placeholder="Select Item(s)" DataSource="@Items" @bind-Value="@SelectedItems" Mode="VisualMode.CheckBox" ShowSelectAll="true" SelectAllText="Select All Items">
+            <MultiSelectFieldSettings Value="ItemNum" Text="ItemDesc"></MultiSelectFieldSettings>
+        </SfMultiSelect>
+    </div>
+</div>
+
+
+
+<SfGrid DataSource="@GridData" AllowPaging="true" AllowSorting="true" AllowFiltering="true">
+    <GridPageSettings PageSize="10"></GridPageSettings>
+    <GridColumns>
+        <GridColumn Field="CustNum" HeaderText="Customer Number" TextAlign="TextAlign.Right" Width="120"></GridColumn>
+        <GridColumn Field="CustName" HeaderText="Customer Name" Width="200"></GridColumn>
+        <GridColumn Field="ItemNum" HeaderText="Item Number" TextAlign="TextAlign.Right" Width="120"></GridColumn>
+        <GridColumn Field="ItemDesc" HeaderText="Item Description" Width="200"></GridColumn>
+        <GridColumn Field="PCFNum" HeaderText="PCF Number" TextAlign="TextAlign.Right" Width="120"></GridColumn>
+        <GridColumn Field="Price" HeaderText="Price" Format="C2" TextAlign="TextAlign.Right" Width="120"></GridColumn>
+    </GridColumns>
+</SfGrid>
+
+@code {
+    public List<PcfCustomer> Customers { get; set; } = new List<PcfCustomer>();
+    public List<PcfItem> Items { get; set; } = new List<PcfItem>();
+    public List<PcfPCF> PCFs { get; set; } = new List<PcfPCF>();
+    public List<dynamic> GridData { get; set; } = new List<dynamic>();
+
+    public string SelectedCustomer { get; set; }
+    public string[] SelectedItems { get; set; }
+    public string SelectedPCF { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Customers = await DataService.LoadPcfActiveCustomers();
+        await LoadItems();
+
+    }
+
+    private async Task LoadItems()
+    {
+        Items = await DataService.LoadPcfItems();
+    }
+
+    private async Task LoadPCFs()
+    {
+        if (string.IsNullOrEmpty(SelectedCustomer)) return;
+
+        PCFs = await DataService.LoadPcfPCFs(SelectedCustomer);
+    }
+
+    private async Task LoadGridData()
+    {
+        // Implement the logic to load grid data based on selected values
+        // This is a placeholder for the actual implementation
+        GridData.Clear();
+        // Add your logic here to populate GridData based on SelectedCustomer, SelectedItems, and SelectedPCF
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+         
+        }
+    }
+}
