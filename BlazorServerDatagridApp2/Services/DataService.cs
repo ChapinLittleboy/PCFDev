@@ -289,11 +289,21 @@ public class DataService
     }
     public async Task<PCFHeaderEntity> GetPCFHeaderAsync(int pcfNumber)
     {
+        int CurrentUserID = 1;
+
         try
         {
             using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName); // ciisql01
 
-            var CurrentUserID = _userService.CurrentUser.UserId;
+            if (_userService.CurrentUser != null)
+            {
+                CurrentUserID = _userService.CurrentUser.UserId;
+            }
+            else
+            {
+                _userService.InitializeUserAsync();
+                
+            }
 
             var sql = @"SELECT PCFNum, [Date], Warehouse, Dropship, OtherDropship, OtherWarehouse, DWOther, DWOtherText, ProgSDate, 
 ProgEDate, p.CustNum, CustName, BTName, BTAddr, BTCity, BTState, BTZip, BTPhone, BTFax, BTFaxPerm, Buyer, RepName, RepEmail, 
@@ -311,27 +321,21 @@ Join consolidatedcustomers cc on p.CustNum = cc.CustNum and cc.CustSeq = 0
             PCFNum = @PCFNum 
         ;";
 
-            var result = await connection.QueryFirstOrDefaultAsync<PCFHeaderEntity>(sql, new { PCFNum = pcfNumber, CurrentUserID = CurrentUserID });
+                var result = await connection.QueryFirstOrDefaultAsync<PCFHeaderEntity>(sql, new { PCFNum = pcfNumber, CurrentUserID = CurrentUserID });
 
-            if (result == null)
-            {
-                // Log unauthorized access attempt
-                Console.WriteLine($"User {CurrentUserID} attempted to access a PCF {pcfNumber} they are not authorized for.");
+                if (result == null)
+                {
+                    // Log unauthorized access attempt
+                    Console.WriteLine($"User {CurrentUserID} attempted to access a PCF {pcfNumber} they are not authorized for.");
 
-                // Optionally, you can throw a custom exception
-                // throw new UnauthorizedAccessException("You do not have access to view this PCF.");
+                    // Optionally, you can throw a custom exception
+                    // throw new UnauthorizedAccessException("You do not have access to view this PCF.");
+                }
+
+                return result;
             }
+     
 
-            return result;
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            // Log or handle the unauthorized access
-            Console.WriteLine($"Unauthorized access: {ex.Message}");
-
-            // Optionally, rethrow or return an empty object to indicate failure
-            throw; // Or return new PCFHeaderEntity() if you prefer silent failure
-        }
         catch (Exception ex)
         {
             // Log the exception (depending on the logging library you're using)
@@ -396,6 +400,12 @@ Join consolidatedcustomers cc on p.CustNum = cc.CustNum and cc.CustSeq = 0
         {
             using var connection = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
 
+            if (_userService.CurrentUser == null)
+       
+            {
+                _userService.InitializeUserAsync();
+
+            }
             // Get the RepCode directly from UserService
             var repCode = _userService.CurrentRep.RepCode;
 
@@ -418,7 +428,11 @@ Join consolidatedcustomers cc on p.CustNum = cc.CustNum and cc.CustSeq = 0
         try
         {
             using var connection = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
+            if (_userService.CurrentUser == null)
+            {
+                _userService.InitializeUserAsync();
 
+            }
             // Get the RepCode directly from UserService
             var repCode = _userService.CurrentRep.RepCode;
 

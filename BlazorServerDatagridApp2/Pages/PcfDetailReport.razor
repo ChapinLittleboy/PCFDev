@@ -1,0 +1,53 @@
+﻿@page "/pcf-detail-report"
+@using BlazorServerDatagridApp2.Models  @* Adjust to your actual namespace *@
+@using Syncfusion.Blazor.Grids
+@inject DataService DataService
+
+<PageTitle>PCF Program Details</PageTitle>
+
+<h3>PCF Program Details</h3>
+
+<SfGrid DataSource="@pcfDetails" AllowPaging="true" AllowSorting="true" AllowFiltering="true" >
+    <GridColumns>
+        <GridColumn Field="PCFNum" HeaderText="PCF #" TextAlign="TextAlign.Center" Width="100" Type="ColumnType.Number"  />
+        <GridColumn Field="CustomerNumber" HeaderText="Customer #" Width="120" />
+        <GridColumn Field="CustomerName" HeaderText="Customer Name" Width="200" />
+        <GridColumn Field="StartDate" HeaderText="Start Date" Format="d" Type="ColumnType.Date" Width="120" />
+        <GridColumn Field="EndDate" HeaderText="End Date" Format="d" Type="ColumnType.Date" Width="120" />
+        <GridColumn Field="PCFStatus" HeaderText="Status" TextAlign="TextAlign.Center" Width="100" />
+        <GridColumn Field="PcfType" HeaderText="Type" Width="100" />
+        <GridColumn Field="VPSalesDate" HeaderText="VP Sales Date" Format="d" Type="ColumnType.Date" Width="130" />
+        <GridColumn Field="BuyingGroup" HeaderText="Buying Group" Width="150" />
+        <GridColumn Field="GeneralNotes" HeaderText="Notes" Width="200" />
+        <GridColumn Field="PromoPaymentTermsText" HeaderText="Payment Terms" Width="160" />
+        <GridColumn Field="PromoFreightTerms" HeaderText="Freight Terms" Width="160" />
+        <GridColumn Field="FreightMinimums" HeaderText="Freight Min." Width="130" />
+        <GridColumn Field="SalesManager" HeaderText="Sales Manager" Width="150" />
+        <GridColumn Field="BillToAddress" HeaderText="Bill To Address" Width="200" />
+        <GridColumn Field="BillToCity" HeaderText="City" Width="120" />
+        <GridColumn Field="BTState" HeaderText="State" Width="80" />
+        <GridColumn Field="BTZip" HeaderText="ZIP" Width="100" />
+        <GridColumn Field="PCFNumber" HeaderText="PCF Number (Item)" Width="150" />
+        <GridColumn Field="ItemNum" HeaderText="Item #" Width="120" />
+        <GridColumn Field="ItemStatus" HeaderText="Item Status" Width="120" />
+        <GridColumn Field="CustNum" HeaderText="Cust #" Width="100" />
+        <GridColumn Field="ItemDesc" HeaderText="Item Description" Width="200" />
+        <GridColumn Field="ApprovedPrice" HeaderText="Approved Price" Width="120" />
+    </GridColumns>
+</SfGrid>
+
+@if (isLoading)
+{
+    <p>Loading data...</p>
+}
+
+@code {
+    private List<PCFDetail> pcfDetails = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+      //  pcfDetails = await DataService.GetAllPCFDetailsAsync();
+        isLoading = false;
+    }
+}

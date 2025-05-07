@@ -512,14 +512,14 @@ else
 
                 <FormButtons>
                     <SfButton Type="Button" OnClick="SanityClickHandler">Validation Check</SfButton>
-                    <SfButton @onclick="ReloadData" disabled="@isLoading">Refresh Data</SfButton>
+                    <SfButton Type="Button" @onclick="ReloadData" disabled="@isLoading">Refresh Data</SfButton>
                     <SfButton Type="Submit">Save</SfButton>
 
                     @if (!string.IsNullOrEmpty(CmaFileLink))
                     {
-                        <SfButton onclick="DownloadCMA">Download CMA</SfButton>
+                        <SfButton Type="Button" onclick="DownloadCMA">Download CMA</SfButton>
                     }
-                    <SfButton @onclick="PrintPDF" disabled="@((isLoading || phDTO.PCFStatus != 3))"> PDF Print</SfButton>
+                    <SfButton Type="Button" @onclick="PrintPDF" disabled="@((isLoading || phDTO.PCFStatus != 3))"> PDF Print</SfButton>
 
                 </FormButtons>
             </SfDataForm>
