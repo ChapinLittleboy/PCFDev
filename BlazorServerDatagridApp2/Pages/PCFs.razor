@@ -49,7 +49,8 @@ else
 {
     <div>
         <SfGrid ID="PcfsGrid" @ref="MyGrid" DataSource="@pcfHeaders" Height="600px" Width="100%" CssClass="custom-grid" 
-        AllowFiltering="true" AllowMultiSorting="true" AllowSorting="true"
+                AllowFiltering="true" AllowMultiSorting="true" AllowSorting="true"
+                AllowExcelExport="true" Toolbar="@(new string[] { "ExcelExport"})"
         AllowPaging="true" EnablePersistence="true" >
             <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel"></GridFilterSettings>
             
@@ -60,7 +61,7 @@ else
                     <GridSortColumn Field="CustomerName" Direction="SortDirection.Ascending"></GridSortColumn>
                 </GridSortColumns>
             </GridSortSettings>
-            <GridEvents Filtering="FilteringHandler" TValue="PCFHeaderDTO"></GridEvents>
+            <GridEvents OnToolbarClick="ToolbarClickHandler" Filtering="FilteringHandler" TValue="PCFHeaderDTO"></GridEvents>
             <GridPageSettings PageSize="200" PageSizes="true" PageCount="8"></GridPageSettings>
             <GridColumns>
                 <GridColumn Field="CustomerNumber" HeaderText="Cust Num" Width="8%" TextAlign="TextAlign.Left"></GridColumn>
@@ -440,6 +441,20 @@ else
       
             UpdateActiveFilters();
         
+    }
+
+
+    public async Task ToolbarClickHandler(Syncfusion.Blazor.Navigations.ClickEventArgs args)
+    {
+        if (args.Item.Id == "PcfsGrid_excelexport") //Id is combination of Grid's ID and itemname
+        {
+            var ExcelFileName = $"PCFListing.xlsx";
+            ExcelExportProperties exportProperties = new ExcelExportProperties
+                {
+                    FileName = ExcelFileName
+                };
+            await this.MyGrid.ExportToExcelAsync(exportProperties);
+        }
     }
 }
 

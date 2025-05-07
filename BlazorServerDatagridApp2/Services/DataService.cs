@@ -8,6 +8,7 @@ using static Dapper.SqlMapper;
 
 
 
+
 namespace BlazorServerDatagridApp2.Services;
 
 public class DataService
@@ -16,14 +17,16 @@ public class DataService
     private readonly IMapper _mapper;
     private readonly IUserService _userService;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<DataService> _logger;
 
 
-    public DataService(DbConnectionFactory dbConnectionFactory, IUserService userService, IMapper mapper, IConfiguration configuration)
+    public DataService(DbConnectionFactory dbConnectionFactory, IUserService userService, IMapper mapper, IConfiguration configuration, ILogger<DataService> logger)
     {
         _dbConnectionFactory = dbConnectionFactory;
         _userService = userService;
         _mapper = mapper;
         _configuration = configuration;
+        _logger = logger;
     }
 
     public async Task<List<ExpandoObject>> GetDynamicSLDataAsync(string query)
@@ -1122,6 +1125,123 @@ EXEC sp_executesql @query;
         string query = @"SELECT DISTINCT pcfnum FROM progcontrol WHERE pcfstatus = 3 AND CustNum = @CustNum";
 
         return (await connection.QueryAsync<PcfPCF>(query, new { CustNum = custNum })).ToList();
+    }
+
+
+    public async Task<List<PCFHeaderDTO>> GetAllPCFHeadersWithItemsAsync()
+    {
+        string sql = @"
+    SELECT 
+        h.PCFNum, 
+        h.CustNum as CustomerNumber, 
+        h.CustName as CustomerName, 
+        h.ProgSDate as StartDate, 
+        h.ProgEDate as EndDate, 
+        h.PCFStatus, 
+        h.PcfType, 
+        h.VPSalesDate,
+        h.BuyingGroup, 
+        h.SubmittedBy,
+        h.GenNotes as GeneralNotes,
+        h.Promo_Terms_Text as PromoPaymentTermsText,
+        h.Standard_Freight_Terms as PromoFreightTerms,
+        h.Freight_Minimums as FreightMinimums,
+        cc.SalesManager,
+        cc.AddressLine1 as BillToAddress,
+        cc.City as BillToCity,
+        cc.State as BTState,
+        cc.Zip as BTZip,
+        i.PCFNumber,
+        i.ItemNum,
+        it.Stat as ItemStatus, 
+        i.CustNum,
+        i.ItemDesc,
+        i.ProposedPrice as ApprovedPrice
+    FROM ProgControl h 
+    LEFT JOIN PCItems i 
+        ON CAST(h.PCFNum AS varchar(50)) = i.PCFNumber
+    LEFT JOIN ConsolidatedCustomers cc 
+        ON h.CustNum = cc.CustNum AND cc.CustSeq = 0
+    LEFT JOIN CIISQL10.Bat_App.dbo.Item_mst it 
+        ON i.ItemNum = it.Item
+    WHERE pcfnum > 0 and (h.ProgSDate > ''1/1/2019'' or h.PCFStatus = 3) and h.PCFStatus <> 98";
+
+        _logger.LogInformation($"GetAllPCFHeadersWithItemsAsync: {sql}");
+        using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName);
+        var headerDict = new Dictionary<int, PCFHeaderDTO>();
+
+        var result = await connection.QueryAsync<PCFHeaderDTO, PCFItemDTO, PCFHeaderDTO>(
+            sql,
+            (header, item) =>
+            {
+                if (!headerDict.TryGetValue(header.PcfNum, out var currentHeader))
+                {
+                    currentHeader = header;
+                    currentHeader.PCFLines = new List<PCFItemDTO>();
+                    headerDict.Add(currentHeader.PcfNum, currentHeader);
+                }
+                if (item != null)
+                {
+                    currentHeader.PCFLines.Add(item);
+                }
+                return currentHeader;
+            },
+            new { RepCode = "not used" },
+            splitOn: "PCFNumber"
+        );
+
+        var allHeaders = headerDict.Values.ToList();
+
+
+
+        return allHeaders;
+    }
+
+    public async Task<List<PCFDetail>> GetAllPCFDetailsAsync()
+    {
+        string sql = @"
+    SELECT 
+        h.PCFNum, 
+        h.CustNum as CustomerNumber, 
+        h.CustName as CustomerName, 
+        h.ProgSDate as StartDate, 
+        h.ProgEDate as EndDate, 
+        h.PCFStatus, 
+        h.PcfType, 
+        h.VPSalesDate,
+        h.BuyingGroup, 
+        h.SubmittedBy,
+        h.GenNotes as GeneralNotes,
+        h.Promo_Terms_Text as PromoPaymentTermsText,
+        h.Standard_Freight_Terms as PromoFreightTerms,
+        h.Freight_Minimums as FreightMinimums,
+        cc.SalesManager,
+        cc.AddressLine1 as BillToAddress,
+        cc.City as BillToCity,
+        cc.State as BTState,
+        cc.Zip as BTZip,
+        i.PCFNumber,
+        i.ItemNum,
+        it.Stat as ItemStatus, 
+        i.CustNum,
+        i.ItemDesc,
+        i.ProposedPrice as ApprovedPrice
+    FROM ProgControl h 
+    LEFT JOIN PCItems i 
+        ON CAST(h.PCFNum AS varchar(50)) = i.PCFNumber
+    LEFT JOIN ConsolidatedCustomers cc 
+        ON h.CustNum = cc.CustNum AND cc.CustSeq = 0
+    LEFT JOIN CIISQL10.Bat_App.dbo.Item_mst it 
+        ON i.ItemNum = it.Item
+    WHERE pcfnum > 0 and (h.ProgSDate > ''1/1/2019'' or h.PCFStatus = 3) and h.PCFStatus <> 98";
+
+        _logger.LogInformation($"GetAllPCFHeadersWithItemsAsync: {sql}");
+        using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName);
+        var headerDict = new Dictionary<int, PCFHeaderDTO>();
+
+        var result = await connection.QueryAsync<PCFDetail>(sql);
+
+        return result.ToList();
     }
 
 
