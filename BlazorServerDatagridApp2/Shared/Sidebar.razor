@@ -5,8 +5,9 @@
     Header
 </div>
 
-<SfSidebar @ref="sidebarObj" Animate="false" EnableRtl="true" Width="250px" @bind-IsOpen="SidebarToggle">
-    <ChildContent>
+<SfSidebar @ref="sidebarObj" Animate="false" EnableRtl="false" Width="250px" EnableDock="false"
+           DockSize="72px">
+<!--  <ChildContent>
         <div style="text-align: center;" class="text-content">
             <span>Sidebar</span>
             <span>
@@ -14,6 +15,7 @@
             </span>
         </div>
     </ChildContent>
+-->
 </SfSidebar>
 
 <div class="text-content" style="text-align: center;">Main content</div>
@@ -31,6 +33,7 @@
     .e-sidebar {
         background-color: #f8f8f8;
         color: black;
+	    min-width: 250px !important;
     }
 
     .text-content {

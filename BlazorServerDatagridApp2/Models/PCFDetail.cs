@@ -27,4 +27,6 @@ public class PCFDetail
         public string? CustNum { get; set; }
         public string? ItemDesc { get; set; }
         public string? ApprovedPrice { get; set; }
+        public int? PrivateLabelFlag { get; set; } = 0;
+
     }

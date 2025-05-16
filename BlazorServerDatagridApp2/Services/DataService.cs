@@ -1164,7 +1164,7 @@ EXEC sp_executesql @query;
         ON h.CustNum = cc.CustNum AND cc.CustSeq = 0
     LEFT JOIN CIISQL10.Bat_App.dbo.Item_mst it 
         ON i.ItemNum = it.Item
-    WHERE pcfnum > 0 and (h.ProgSDate > ''1/1/2019'' or h.PCFStatus = 3) and h.PCFStatus <> 98";
+    WHERE pcfnum > 0 and (h.ProgSDate > '1/1/2019' or h.PCFStatus = 3) and h.PCFStatus <> 98";
 
         _logger.LogInformation($"GetAllPCFHeadersWithItemsAsync: {sql}");
         using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName);
@@ -1226,6 +1226,8 @@ EXEC sp_executesql @query;
         i.CustNum,
         i.ItemDesc,
         i.ProposedPrice as ApprovedPrice
+        ,isnull(it.Uf_PrivateLabel,0) as PrivateLabelFlag
+
     FROM ProgControl h 
     LEFT JOIN PCItems i 
         ON CAST(h.PCFNum AS varchar(50)) = i.PCFNumber
@@ -1233,13 +1235,13 @@ EXEC sp_executesql @query;
         ON h.CustNum = cc.CustNum AND cc.CustSeq = 0
     LEFT JOIN CIISQL10.Bat_App.dbo.Item_mst it 
         ON i.ItemNum = it.Item
-    WHERE pcfnum > 0 and (h.ProgSDate > ''1/1/2019'' or h.PCFStatus = 3) and h.PCFStatus <> 98";
+    WHERE pcfnum > 0 and (h.ProgSDate > @StartDate or h.PCFStatus = 3) and h.PCFStatus <> 98";
 
-        _logger.LogInformation($"GetAllPCFHeadersWithItemsAsync: {sql}");
+        _logger.LogInformation($"GetAllPCFDetailsAsync: {sql}");
         using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName);
         var headerDict = new Dictionary<int, PCFHeaderDTO>();
 
-        var result = await connection.QueryAsync<PCFDetail>(sql);
+        var result = await connection.QueryAsync<PCFDetail>(sql, new { StartDate = new DateTime(2019, 1, 1) });
 
         return result.ToList();
     }

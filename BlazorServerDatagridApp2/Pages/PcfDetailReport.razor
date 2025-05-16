@@ -7,33 +7,42 @@
 
 <h3>PCF Program Details</h3>
 
-<SfGrid DataSource="@pcfDetails" AllowPaging="true" AllowSorting="true" AllowFiltering="true" >
-    <GridColumns>
-        <GridColumn Field="PCFNum" HeaderText="PCF #" TextAlign="TextAlign.Center" Width="100" Type="ColumnType.Number"  />
-        <GridColumn Field="CustomerNumber" HeaderText="Customer #" Width="120" />
-        <GridColumn Field="CustomerName" HeaderText="Customer Name" Width="200" />
-        <GridColumn Field="StartDate" HeaderText="Start Date" Format="d" Type="ColumnType.Date" Width="120" />
-        <GridColumn Field="EndDate" HeaderText="End Date" Format="d" Type="ColumnType.Date" Width="120" />
-        <GridColumn Field="PCFStatus" HeaderText="Status" TextAlign="TextAlign.Center" Width="100" />
-        <GridColumn Field="PcfType" HeaderText="Type" Width="100" />
-        <GridColumn Field="VPSalesDate" HeaderText="VP Sales Date" Format="d" Type="ColumnType.Date" Width="130" />
-        <GridColumn Field="BuyingGroup" HeaderText="Buying Group" Width="150" />
-        <GridColumn Field="GeneralNotes" HeaderText="Notes" Width="200" />
-        <GridColumn Field="PromoPaymentTermsText" HeaderText="Payment Terms" Width="160" />
-        <GridColumn Field="PromoFreightTerms" HeaderText="Freight Terms" Width="160" />
-        <GridColumn Field="FreightMinimums" HeaderText="Freight Min." Width="130" />
-        <GridColumn Field="SalesManager" HeaderText="Sales Manager" Width="150" />
-        <GridColumn Field="BillToAddress" HeaderText="Bill To Address" Width="200" />
-        <GridColumn Field="BillToCity" HeaderText="City" Width="120" />
-        <GridColumn Field="BTState" HeaderText="State" Width="80" />
-        <GridColumn Field="BTZip" HeaderText="ZIP" Width="100" />
-        <GridColumn Field="PCFNumber" HeaderText="PCF Number (Item)" Width="150" />
-        <GridColumn Field="ItemNum" HeaderText="Item #" Width="120" />
-        <GridColumn Field="ItemStatus" HeaderText="Item Status" Width="120" />
-        <GridColumn Field="CustNum" HeaderText="Cust #" Width="100" />
-        <GridColumn Field="ItemDesc" HeaderText="Item Description" Width="200" />
-        <GridColumn Field="ApprovedPrice" HeaderText="Approved Price" Width="120" />
-    </GridColumns>
+<SfGrid ID="PcfsGrid" @ref="MyGrid" DataSource="@pcfDetails" AllowSorting="true" AllowPaging="true" AllowFiltering="true"
+        AllowExcelExport="true" Toolbar="@(new string[] { "ExcelExport" })" 
+        AllowColumnReordering="true" AllowResizing="true" 
+		ShowColumnChooser="true"
+        AllowGrouping="true" Height="600px" Width="90%" >
+      
+	<GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel"></GridFilterSettings>
+	<GridEvents OnToolbarClick="ToolbarClickHandler"  TValue="PCFDetail"></GridEvents>
+	<GridPageSettings PageSize="20"  PageSizes="@(new string[] { "20", "50", "100", "All" })"></GridPageSettings>
+	<GridColumns>
+		<GridColumn Field="PCFNum" HeaderText="PCF #" TextAlign="TextAlign.Center" Width="100" Type="ColumnType.Number"/>
+		<GridColumn Field="CustomerNumber" HeaderText="Customer #" Width="120"/>
+		<GridColumn Field="CustomerName" HeaderText="Customer Name" Width="200"/>
+		<GridColumn Field="StartDate" HeaderText="Start Date" Format="d" Type="ColumnType.Date" Width="120"/>
+		<GridColumn Field="EndDate" HeaderText="End Date" Format="d" Type="ColumnType.Date" Width="120"/>
+		<GridColumn Field="PCFStatus" HeaderText="Status" TextAlign="TextAlign.Center" Width="100"/>
+		<GridColumn Field="PcfType" HeaderText="Type" Width="100"/>
+		<GridColumn Field="VPSalesDate" HeaderText="VP Sales Date" Format="d" Type="ColumnType.Date" Width="130"/>
+		<GridColumn Field="BuyingGroup" HeaderText="Buying Group" Width="150"/>
+		<GridColumn Field="GeneralNotes" HeaderText="Notes" Width="200"/>
+		<GridColumn Field="PromoPaymentTermsText" HeaderText="Payment Terms" Width="160"/>
+		<GridColumn Field="PromoFreightTerms" HeaderText="Freight Terms" Width="160"/>
+		<GridColumn Field="FreightMinimums" HeaderText="Freight Min." Width="130"/>
+		<GridColumn Field="SalesManager" HeaderText="Sales Manager" Width="150"/>
+		<GridColumn Field="BillToAddress" HeaderText="Bill To Address" Width="200"/>
+		<GridColumn Field="BillToCity" HeaderText="City" Width="120"/>
+		<GridColumn Field="BTState" HeaderText="State" Width="80"/>
+		<GridColumn Field="BTZip" HeaderText="ZIP" Width="100"/>
+		<GridColumn Field="PCFNumber" HeaderText="PCF Number (Item)" Width="150"/>
+		<GridColumn Field="ItemNum" HeaderText="Item #" Width="120"/>
+		<GridColumn Field="ItemStatus" HeaderText="Item Status" Width="120"/>
+		<GridColumn Field="PrivateLabelFlag" HeaderText="Private Label" Width="120"/>
+		<GridColumn Field="CustNum" HeaderText="Cust #" Width="100"/>
+		<GridColumn Field="ItemDesc" HeaderText="Item Description" Width="200"/>
+		<GridColumn Field="ApprovedPrice" HeaderText="Approved Price" Width="120"/>
+	</GridColumns>
 </SfGrid>
 
 @if (isLoading)
@@ -42,12 +51,32 @@
 }
 
 @code {
-    private List<PCFDetail> pcfDetails = new();
-    private bool isLoading = true;
+	private List<PCFDetail> pcfDetails = new();
+	private bool isLoading = true;
+	private SfGrid<PCFDetail> MyGrid;
 
-    protected override async Task OnInitializedAsync()
-    {
-      //  pcfDetails = await DataService.GetAllPCFDetailsAsync();
-        isLoading = false;
-    }
+	protected override async Task OnInitializedAsync()
+	{
+		pcfDetails = await DataService.GetAllPCFDetailsAsync();
+		isLoading = false;
+	}
+
+	private string GetPrivateLabelDisplay(object data, string columnName)
+	{
+		var item = data as PCFDetail;
+		return item?.PrivateLabelFlag == 1 ? "Yes" : "No";
+	}
+
+	public async Task ToolbarClickHandler(Syncfusion.Blazor.Navigations.ClickEventArgs args)
+	{
+		if (args.Item.Id == "PcfsGrid_excelexport") //Id is combination of Grid's ID and itemname
+		{
+			var ExcelFileName = $"PCFReport.xlsx";
+			ExcelExportProperties exportProperties = new ExcelExportProperties
+			{
+				FileName = ExcelFileName
+			};
+			await this.MyGrid.ExportToExcelAsync(exportProperties);
+		}
+	}
 }
