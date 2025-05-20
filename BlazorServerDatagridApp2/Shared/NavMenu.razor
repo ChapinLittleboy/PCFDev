@@ -4,7 +4,7 @@
 
 <div class="@NavMenuCssClass nav-scrollable" style="background: linear-gradient(to bottom, rgb(186, 12, 47), rgb(93, 6, 23));">
     <nav class="flex-column">
-        <div class="logo">
+        <div class="logo" >
             <img src="images/CHAPIN LOGO REVERSED.png" alt="Chapin International" class="logo-img" />
         </div>
         <div class="nav-item px-3">
@@ -21,11 +21,16 @@
         @if (IsAdmin)
         {
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/admin/role-management">
-                <span class="oi oi-people" aria-hidden="true"></span>Users
-            </NavLink>
-        </div>
+	        <div class="nav-item px-3">
+		        <NavLink class="nav-link" href="/admin/role-management">
+			        <span class="oi oi-people" aria-hidden="true"></span>Users
+		        </NavLink>
+	        </div>
+	        <div class="nav-item px-3">
+		        <NavLink class="nav-link" href="price-increase-rpt">
+			        <span class="oi oi-document" aria-hidden="true"></span> Price Inc Rpt
+		        </NavLink>
+	        </div>
         }
 
         @if (UserService != null && !string.IsNullOrEmpty(UserService.UserName) &&

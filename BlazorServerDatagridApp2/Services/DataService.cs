@@ -1227,7 +1227,7 @@ EXEC sp_executesql @query;
         i.ItemDesc,
         i.ProposedPrice as ApprovedPrice
         ,isnull(it.Uf_PrivateLabel,0) as PrivateLabelFlag
-
+        ,it.Family_Code, fc.Description as FamilyCodeDescription
     FROM ProgControl h 
     LEFT JOIN PCItems i 
         ON CAST(h.PCFNum AS varchar(50)) = i.PCFNumber
@@ -1235,6 +1235,7 @@ EXEC sp_executesql @query;
         ON h.CustNum = cc.CustNum AND cc.CustSeq = 0
     LEFT JOIN CIISQL10.Bat_App.dbo.Item_mst it 
         ON i.ItemNum = it.Item
+    LEFT JOIN CIISQL10.Bat_App.dbo.famcode_mst fc on fc.family_code = it.family_code
     WHERE pcfnum > 0 and (h.ProgSDate > @StartDate or h.PCFStatus = 3) and h.PCFStatus <> 98";
 
         _logger.LogInformation($"GetAllPCFDetailsAsync: {sql}");
