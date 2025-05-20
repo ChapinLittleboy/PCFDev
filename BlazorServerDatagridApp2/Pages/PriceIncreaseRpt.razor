@@ -1,25 +1,26 @@
 ﻿@page "/price-increase-rpt"
 @using BlazorServerDatagridApp2.Models 
 @using Syncfusion.Blazor.Grids
+@using Syncfusion.Blazor.Spinner
 @inject DataService DataService
 
 <PageTitle>Price Increase Rpt</PageTitle>
 
-<h3>PCF Program Details</h3>
+<h3>Price Increase Grid</h3>
 
 <SfGrid ID="PcfsGrid" @ref="MyGrid" DataSource="@pcfDetails" AllowSorting="true" AllowPaging="true" AllowFiltering="true"
-		AllowExcelExport="true" Toolbar="@(new string[] { "ExcelExport" })"
-		AllowColumnReordering="true" AllowResizing="true"
+		AllowExcelExport="true" Toolbar="@(new string[] { "ExcelExport", "ColumnChooser" })"
+		AllowReordering="true" AllowResizing="true"
 		ShowColumnChooser="true"
-		AllowGrouping="true" Height="600px" Width="90%">
+		AllowGrouping="true" Height="600px" Width="100%">
 
 	<GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel"></GridFilterSettings>
 	<GridEvents OnToolbarClick="ToolbarClickHandler" TValue="PCFDetail"></GridEvents>
-	<GridPageSettings PageSize="20" PageSizes="@(new string[] { "20", "50", "100", "All" })"></GridPageSettings>
+	<GridPageSettings PageSize="20" PageSizes="@(new string[] { "10", "20", "50", "100", "All" })"></GridPageSettings>
 	<GridColumns>
 		<GridColumn Field="PCFNum" HeaderText="PCF #" TextAlign="TextAlign.Center" Width="100" Type="ColumnType.Number" />
-		<GridColumn Field="CustomerNumber" HeaderText="Customer #" Width="120" />
-		<GridColumn Field="CustomerName" HeaderText="Customer Name" Width="200" />
+		<GridColumn Field="CustomerNumber" HeaderText="Cust #" Width="120" />
+		<GridColumn Field="CustomerName" HeaderText="Cust Name" Width="200" />
 		<GridColumn Field="StartDate" HeaderText="Start Date" Format="d" Type="ColumnType.Date" Width="120" />
 		<GridColumn Field="EndDate" HeaderText="End Date" Format="d" Type="ColumnType.Date" Width="120" />
 		<GridColumn Field="PCFStatus" HeaderText="Status" TextAlign="TextAlign.Center" Width="100" />
@@ -42,7 +43,9 @@
 
 @if (isLoading)
 {
-	<p>Loading data...</p>
+	<div style="width:100%;text-align:center">
+		<SfSpinner Visible="true" Size="50"></SfSpinner>
+	</div>
 }
 
 @code {

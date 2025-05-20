@@ -8,10 +8,10 @@
 <h3>PCF Program Details</h3>
 
 <SfGrid ID="PcfsGrid" @ref="MyGrid" DataSource="@pcfDetails" AllowSorting="true" AllowPaging="true" AllowFiltering="true"
-        AllowExcelExport="true" Toolbar="@(new string[] { "ExcelExport" })" 
-        AllowColumnReordering="true" AllowResizing="true" 
+        AllowExcelExport="true" Toolbar="@(new string[] { "ExcelExport", "ColumnChooser" })" 
+        AllowReordering="true" AllowResizing="true" 
 		ShowColumnChooser="true"
-        AllowGrouping="true" Height="600px" Width="90%" >
+        AllowGrouping="true" Height="600px" Width="100%" >
       
 	<GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel"></GridFilterSettings>
 	<GridEvents OnToolbarClick="ToolbarClickHandler"  TValue="PCFDetail"></GridEvents>

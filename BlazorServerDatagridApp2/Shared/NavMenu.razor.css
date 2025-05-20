@@ -37,7 +37,7 @@
         height: 3rem;
         display: flex;
         align-items: center;
-        line-height: 3rem;
+        line-height: 1.2rem;
     }
 
 .nav-item ::deep a.active {
@@ -68,7 +68,7 @@
 }
 .sidebar {
     width: 190px;
-    min-width: 175px;
+    min-width: 180px;
     height: 100vh;
     background-color: #343a40;
     color: #fff;
