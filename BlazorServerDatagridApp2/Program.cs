@@ -31,6 +31,8 @@ Log.Logger = new LoggerConfiguration()
         retainedFileCountLimit: 7,  // Keep 7 days of logs
         outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"
     )
+    .WriteTo.Debug()    // <--- Add this line
+    .WriteTo.Console()  // <--- Optional: Also log to terminal/console
     .CreateLogger();
 
 // Add services to the container.

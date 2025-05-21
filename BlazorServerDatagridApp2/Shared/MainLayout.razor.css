@@ -33,6 +33,17 @@ main {
         text-overflow: ellipsis;
     }
 
+
+article.content {
+    /* Existing styles, if any, plus these: */
+    
+    min-width: 0;
+    overflow-x: auto; /* Scroll grid/content horizontally inside article */
+    flex: 1;
+    margin-left: 0; /* Make sure there’s no margin pushing it right */
+    margin-right: 0;
+}
+
 @media (max-width: 640.98px) {
     .top-row:not(.auth) {
         display: none;

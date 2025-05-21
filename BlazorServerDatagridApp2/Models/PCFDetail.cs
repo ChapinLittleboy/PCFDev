@@ -31,4 +31,34 @@ public class PCFDetail
         public string? Family_Code { get; set; }
         public string? Family_Code_Description { get; set; }
 
+        // Not mapped to DB; for display only
+        public decimal NewPrice { get; set; }
+    // New: parsed decimal version
+    public decimal ApprovedPriceDecimal
+    {
+        get
+        {
+            decimal value;
+            // TryParse avoids exceptions if string is blank or bad
+            return decimal.TryParse(ApprovedPrice, out value) ? value : 0m;
+        }
+    }
+
+    public string ItemStatusText
+    {
+        get
+        {
+            return ItemStatus switch
+            {
+                "A" => "Active",
+                "O" => "Obsolete",
+                "S" => "Slow Moving",
+                _ => "Unknown"
+            };
+        }
+    }
+    public string PrivateLabelText =>
+        PrivateLabelFlag == 1 ? "Yes" :
+        PrivateLabelFlag == 0 ? "No" :
+        "Unknown";
 }

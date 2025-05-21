@@ -1247,7 +1247,22 @@ EXEC sp_executesql @query;
         return result.ToList();
     }
 
+    public async Task<List<FamilyCode>> GetAllFamilyCodesAsync()
+    {
 
+
+
+
+        using var connection = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
+
+        string query = @"SELECT DISTINCT family_code, description as family_name
+                         FROM famcode_mst 
+                         WHERE family_code IS NOT NULL AND family_code <> '' 
+                         ORDER BY family_code";
+
+        var result = (await connection.QueryAsync<FamilyCode>(query)).ToList();
+        return result;
+    }
 
 
 }
