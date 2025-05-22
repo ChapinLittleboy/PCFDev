@@ -4,6 +4,7 @@
 @using Syncfusion.Blazor.Spinner
 @using Syncfusion.Blazor.Buttons
 @using Syncfusion.Blazor.DropDowns
+@using Syncfusion.Blazor.Popups
 @using Microsoft.Extensions.Logging
 @using Microsoft.IdentityModel.Tokens
 @inject DataService DataService
@@ -11,7 +12,47 @@
 
 <PageTitle>Price Increase Rpt</PageTitle>
 
-<h5>Price Increase Worksheet Tool</h5>
+<!-- Worksheet header row: left for title, center for button -->
+<div class="worksheet-header-row">
+    <div class="worksheet-header-title">
+        <h5 style="margin: 0;">Price Increase Worksheet Tool</h5>
+    </div>
+    <div class="worksheet-header-btn">
+        @if (percentagesSet)
+        {
+            <SfButton CssClass="e-outline" @onclick="ShowReviewDialog">Review Selected Family Codes</SfButton>
+        }
+    </div>
+    <div class="worksheet-header-spacer"></div>
+</div>
+
+<SfDialog @bind-Visible="showReviewDialog" Width="500px" IsModal="true" ShowCloseIcon="true" Header="Review Selected Family Codes" >
+    <div>
+        <table class="table table-sm table-bordered" style="width:100%">
+            <thead>
+                <tr>
+                    <th>Family Code</th>
+                    <th>Family Name</th>
+                    <th>% Increase</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var code in selectedFamilyCodes)
+                {
+                    var fam = allFamilies.FirstOrDefault(f => f.family_code == code);
+                    <tr>
+                        <td>@(code)</td>
+                        <td>@(fam?.family_name)</td>
+                        <td>@(codeIncreases.ContainsKey(code) ? codeIncreases[code].ToString("0.##") : "")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <div style="text-align:right; margin-top:1rem;">
+            <SfButton CssClass="e-primary" @onclick="CloseReviewDialog">Close</SfButton>
+        </div>
+    </div>
+</SfDialog>
 
 @if (isLoading)
 {
@@ -166,6 +207,7 @@ else
     private bool confirmedSelection = false;
     private bool percentagesSet = false;
     private bool appliedIncreases = false;
+    private bool showReviewDialog = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -291,12 +333,18 @@ else
 
     }
 
+    private void ShowReviewDialog()
+    {
+        showReviewDialog = true;
+    }
 
+    private void CloseReviewDialog()
+    {
+        showReviewDialog = false;
+    }
 }
 
 <style>
-
-
     .e-grid .e-headercell {
         font-size: 0.6rem;         /* Bigger text */
         padding-top: 0.8rem;
@@ -318,5 +366,24 @@ else
     .e-grid .e-headercell .e-filtered::before {
         color: red; /* or add a dot, background, etc. */
         font-weight: bold;
+    }
+    .worksheet-header-row {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+    .worksheet-header-title {
+        flex: 1 1 0;
+        text-align: left;
+    }
+    .worksheet-header-btn {
+        flex: 1 1 0;
+        display: flex;
+        justify-content: center;
+    }
+    .worksheet-header-spacer {
+        flex: 1 1 0;
     }
 </style>
