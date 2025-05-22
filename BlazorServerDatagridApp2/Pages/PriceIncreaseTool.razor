@@ -11,7 +11,7 @@
 
 <PageTitle>Price Increase Rpt</PageTitle>
 
-<h3>Price Increase Worksheet</h3>
+<h5>Price Increase Worksheet Tool</h5>
 
 @if (isLoading)
 {
@@ -131,6 +131,7 @@ else
             <!--<GridColumn Field="Family_Name" HeaderText="Family Name" Width="100" /> -->
             <GridColumn Field="ApprovedPriceDecimal" HeaderText="Current Price" Width="120" Format="C2" />
             <GridColumn Field="NewPrice" HeaderText="New Price" Width="120" Format="C2" />
+            <GridColumn Field="SalesManager" HeaderText="SalesMgr" Width="120"  />
         </GridColumns>
     </SfGrid>
 }
