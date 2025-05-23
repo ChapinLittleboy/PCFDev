@@ -1,0 +1,49 @@
+﻿.e-grid .e-headercell {
+    font-size: 0.6rem; /* Bigger text */
+    padding-top: 0.8rem;
+    padding-bottom: 0.8rem;
+    line-height: 2.0; /* Taller header row */
+}
+
+.e-grid .e-rowcell {
+    font-size: 0.70rem; /* Smaller text */
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+    line-height: 1.2;
+}
+
+.e-grid .e-filtermenudiv {
+    margin-left: 0.01rem; /* Add space to the left */
+    margin-right: 0.15rem; /* Add space to the right */
+    margin-top: 2px; /* Adjust vertical as needed */
+    margin-bottom: 1px;
+}
+
+.e-grid .e-headercell .e-filtered::before {
+    color: red; /* or add a dot, background, etc. */
+    font-weight: bold;
+}
+
+.worksheet-header-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.worksheet-header-title {
+    flex: 1 1 0;
+    text-align: left;
+}
+
+.worksheet-header-btn {
+    flex: 1 1 0;
+    display: flex;
+    justify-content: center;
+}
+
+.worksheet-header-spacer {
+    flex: 1 1 0;
+}body {
+}

@@ -30,6 +30,7 @@ public class PCFDetail
         public int? PrivateLabelFlag { get; set; } = 0;
         public string? Family_Code { get; set; }
         public string? Family_Code_Description { get; set; }
+        public string? Salesman { get; set; }
 
         // Not mapped to DB; for display only
         public decimal NewPrice { get; set; }
@@ -61,4 +62,19 @@ public class PCFDetail
         PrivateLabelFlag == 1 ? "Yes" :
         PrivateLabelFlag == 0 ? "No" :
         "Unknown";
+
+    public string CustomerPCFGroup
+    {
+        get
+        {
+            return $"Cust#: {CustomerNumber}  PCF#: {PCFNumber}";
+        }
+    }
+    public string CustomerNamePCFGroup
+    {
+        get
+        {
+            return $"Cust#: {CustomerNumber} {CustomerName}     PCF#: {PCFNumber}";
+        }
+    }
 }

@@ -1228,6 +1228,7 @@ EXEC sp_executesql @query;
         i.ProposedPrice as ApprovedPrice
         ,isnull(it.Uf_PrivateLabel,0) as PrivateLabelFlag
         ,it.Family_Code, fc.Description as FamilyCodeDescription
+        ,LTRIM(RTRIM(coalesce(h.SRNum, cc.Salesman, ''))) as Salesman
     FROM ProgControl h 
     LEFT JOIN PCItems i 
         ON CAST(h.PCFNum AS varchar(50)) = i.PCFNumber
