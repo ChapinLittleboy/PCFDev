@@ -4,7 +4,9 @@ using BlazorServerDatagridApp2.Models;
 using Dapper;
 using System.Data;
 using System.Dynamic;
+using System.Runtime.CompilerServices;
 using static Dapper.SqlMapper;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 
 
@@ -1265,6 +1267,44 @@ EXEC sp_executesql @query;
         return result;
     }
 
+
+    public async Task<List<ItemPriceDto>> GetAllItemPricesOnPriceLists()
+    {
+        var sql = @"SELECT 
+    im.item, 
+    im.description, 
+    im.family_code,
+    fc.description as Family_Code_Description,
+    ip.effect_date AS EffectiveDate, 
+    ISNULL(ip.unit_price1, 0.0) AS ListPrice,
+    ISNULL(ip.unit_price2, 0.0) AS PP1Price,  -- 4K Book
+    ISNULL(ip.unit_price3, 0.0) AS PP2Price,  -- 12.5k Book
+    ISNULL(ip.unit_price4, 0.0) AS BM1Price,  -- BG Midstates 4k
+    ISNULL(ip.unit_price5, 0.0) AS BM2Price,  -- BG Midstates 12.5k
+    ISNULL(ip.unit_price6, 0.0) AS FobPrice
+    ,im.stat as ItemStatus
+FROM 
+    itemprice_mst ip
+  inner JOIN  item_mst im on im.item = ip.item
+            AND im.site_ref = ip.site_ref
+LEFT JOIN 
+    famcode_mst fc
+    ON im.family_code = fc.family_code
+            INNER JOIN (
+                SELECT item, MAX(effect_date) AS max_date
+                  FROM dbo.itemprice_mst
+                 GROUP BY item
+            ) md
+              ON ip.item = md.item
+             AND ip.effect_date = md.max_date
+            ORDER BY ip.item;";
+
+        using var connection = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
+
+        IEnumerable<ItemPriceDto> prices = connection.Query<ItemPriceDto>(sql);
+        return prices.ToList();
+
+    }
 
 }
 

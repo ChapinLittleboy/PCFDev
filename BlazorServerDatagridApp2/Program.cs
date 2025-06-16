@@ -5,10 +5,12 @@ using BlazorServerDatagridApp2.Models;
 using BlazorServerDatagridApp2.Services;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.Negotiate;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Events;
 using Syncfusion.Blazor;
+using System.Data;
 
 
 
@@ -91,6 +93,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     ServiceLifetime.Transient);
 
 builder.Services.AddScoped<ExportService>();
+
+builder.Services.AddScoped<IPriceCalculationService, PriceCalculationService>();
 
 
 
