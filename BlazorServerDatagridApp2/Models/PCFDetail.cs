@@ -31,6 +31,7 @@ public class PCFDetail
         public string? Family_Code { get; set; }
         public string? Family_Code_Description { get; set; }
         public string? Salesman { get; set; }
+        public string? EUT { get; set; }
 
         // Not mapped to DB; for display only
         public decimal NewPrice { get; set; }

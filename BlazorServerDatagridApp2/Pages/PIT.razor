@@ -5,6 +5,7 @@
 @using Syncfusion.Blazor.Buttons
 @using Syncfusion.Blazor.DropDowns
 @using Syncfusion.Blazor.Popups
+@using Syncfusion.Blazor.Lists
 @using Microsoft.Extensions.Logging
 @using FilterType = Syncfusion.Blazor.Grids.FilterType
 @inject DataService DataService
@@ -64,47 +65,50 @@ else
     <div class="mb-4">
         <label>Select Mode:</label>
         <div>
-            <SfRadioButton  
-                Label="PCF"  
-                Name="mode"  
-                Value="PCF"  
-                TChecked="string"  
-                @bind-Checked="mode" />
-            <SfRadioButton  
-                Label="Price List"  
-                Name="mode"  
-                Value="PriceList"  
-                TChecked="string"  
-                @bind-Checked="mode" />
+            <SfRadioButton
+                Label="PCF"
+                Name="mode"
+                Value="PCF"
+                TChecked="string"
+                @bind-Checked="Mode"/>
+            <SfRadioButton
+                Label="Price List"
+                Name="mode"
+                Value="PriceList"
+                TChecked="string"
+                @bind-Checked="Mode"/>
         </div>
     </div>
 
 
-    @if (mode == "PriceList")
-  {
-    <div class="mb-4">
-      <label>Select Price List:</label>
-      <SfDropDownList TValue="string"
-                      TItem="PriceList"
-                      DataSource="@priceLists"
-                      @bind-Value="selectedPriceListId"
-                      Placeholder="Choose a list"
-                      Change="OnPriceListChanged"
-                      Fields='@(new DropDownListFieldSettings { Value = "Id", Text = "Name" })' />
-    </div>
-  }
+    @if (Mode == "PriceList")
+    {
+       
+        <div class="d-flex flex-wrap align-items-center">
+            @foreach (var pl in priceLists)
+            {
+                <div class="me-4 mb-2">
+                    <SfCheckBox TValue="bool"
+                                Label="@pl.Name"
+                                Checked="@selectedPriceListIds.Contains(pl.Id)"
+                                CheckedChanged="@( (bool isChecked) => OnCheckboxChanged(pl.Id, isChecked) )" />
+                </div>
+            }
+        </div>
+    }
 
-  @if (showFamilyCodeSelector)
-  {
-    <div style="transform: scale(0.8); transform-origin: top left; display: inline-block;">
-      <FamilyCodeSelector AvailableCodes="allFamilies"
-                          SelectedCodes="@selectedFamilyCodes"
-                          CodeIncreases="@codeIncreases"
-                          ShowSelectAll="true"
-                          SelectedCodesChanged="(codes) => selectedFamilyCodes = codes"
-                          CodeIncreasesChanged="(incs) => codeIncreases = incs" />
-    </div>
-  }
+    @if (showFamilyCodeSelector)
+    {
+        <div style="transform: scale(0.8); transform-origin: top left; display: inline-block;">
+            <FamilyCodeSelector AvailableCodes="allFamilies"
+                                SelectedCodes="@selectedFamilyCodes"
+                                CodeIncreases="@codeIncreases"
+                                ShowSelectAll="true"
+                                SelectedCodesChanged="(codes) => selectedFamilyCodes = codes"
+                                CodeIncreasesChanged="(incs) => codeIncreases = incs"/>
+        </div>
+    }
+
     @if (showGridButton)
     {
         <div class="mt-3">
@@ -113,6 +117,7 @@ else
             </SfButton>
         </div>
     }
+
     @if (showApplyButton)
     {
         <div class="mt-3">
@@ -145,30 +150,118 @@ else
             <GridPageSettings PageSize="20"
                               PageSizes="@(new[] { "10", "20", "50", "100", "All" })"/>
             <GridColumns>
-                <GridColumn Field="PCFNum" HeaderText="PCF #" TextAlign="TextAlign.Center" Width="90" Type="ColumnType.Number" />
-                <GridColumn Field="CustomerNumber" HeaderText="Cust #" Width="90" />
-                <GridColumn Field="CustomerName" HeaderText="Cust Name" Width="150" />
-                <GridColumn Field="StartDate" HeaderText="Start Date" Format="d" Type="ColumnType.Date" Width="90" />
-                <GridColumn Field="EndDate" HeaderText="End Date" Format="d" Type="ColumnType.Date" Width="90" />
-                <GridColumn Field="PcfType" HeaderText="Type" Width="90" />
+                <GridColumn Field="PCFNum" HeaderText="PCF #" TextAlign="TextAlign.Center" Width="90" Type="ColumnType.Number"/>
+                <GridColumn Field="CustomerNumber" HeaderText="Cust #" Width="90"/>
+                <GridColumn Field="CustomerName" HeaderText="Cust Name" Width="150"/>
+                <GridColumn Field="StartDate" HeaderText="Start Date" Format="d" Type="ColumnType.Date" Width="90"/>
+                <GridColumn Field="EndDate" HeaderText="End Date" Format="d" Type="ColumnType.Date" Width="90"/>
+                <GridColumn Field="PcfType" HeaderText="Type" Width="90"/>
                 <GridColumn Field="BuyingGroup" HeaderText="Buying Group" Width="110" />
+                <GridColumn Field="EUT" HeaderText="EUT" Width="110" />
                 <GridColumn Field="BTState" HeaderText="State" Width="90" />
-                <GridColumn Field="ItemNum" HeaderText="Item #" Width="90" />
-                <GridColumn Field="ItemDesc" HeaderText="Item Description" Width="200" />
-                <GridColumn Field="ItemStatusText" HeaderText="Item Status" Width="100" />
-                <GridColumn Field="PrivateLabelText" HeaderText="Private Label" Width="110" />
-                <GridColumn Field="Family_Code" HeaderText="Family Code" Width="100" />
+                <GridColumn Field="ItemNum" HeaderText="Item #" Width="90"/>
+                <GridColumn Field="ItemDesc" HeaderText="Item Description" Width="200"/>
+                <GridColumn Field="ItemStatusText" HeaderText="Item Status" Width="100"/>
+                <GridColumn Field="PrivateLabelText" HeaderText="Private Label" Width="110"/>
+                <GridColumn Field="Family_Code" HeaderText="Family Code" Width="100"/>
                 <!--<GridColumn Field="Family_Name" HeaderText="Family Name" Width="100" /> -->
-                <GridColumn Field="ApprovedPriceDecimal" HeaderText="Current Price" Width="120" Format="C2" />
-                <GridColumn Field="NewPrice" HeaderText="New Price" Width="120" Format="C2" />
-                <GridColumn Field="SalesManager" HeaderText="SalesMgr" Width="120" />
-                <GridColumn Field="Salesman" HeaderText="RepCode" Width="120" Visible="true" />
+                <GridColumn Field="ApprovedPriceDecimal" HeaderText="Current Price" Width="120" Format="C2"/>
+                <GridColumn Field="NewPrice" HeaderText="New Price" Width="120" Format="C2"/>
+                <GridColumn Field="SalesManager" HeaderText="SalesMgr" Width="120"/>
+                <GridColumn Field="Salesman" HeaderText="RepCode" Width="120" Visible="true"/>
                 <GridColumn Field="CustomerPCFGroup" HeaderText="Customer/PCF" Visible="false"></GridColumn>
                 <GridColumn Field="CustomerNamePCFGroup" HeaderText="Customer/PCF" Visible="false"></GridColumn>
             </GridColumns>
         </SfGrid>
     }
+
+
+    @if (showPriceListGrid)
+    {
+
+        <SfGrid ID="PLGrid"  @ref="MyPriceListGrid"
+               
+        DataSource="@itempricelists"
+        AllowPaging="true"
+      AllowTextWrap="true"
+      AllowSorting="true"
+                AllowExcelExport="true"
+        AllowFiltering="true"
+        Height="600px"
+        Toolbar="@(new[] { "ExcelExport" })">
+            <GridFilterSettings Type="FilterType.Excel"/>
+            <GridTextWrapSettings WrapMode="WrapMode.Header"/>
+            <GridEvents OnToolbarClick="PLToolbarClickHandler" TValue="ItemPriceDto"/>
+            <GridPageSettings PageSize="20"
+                              PageSizes="@(new[] { "10", "20", "50", "100", "All" })"/>
+    <GridColumns>
+        <GridColumn Field="Item" HeaderText="Item" Width="100" TextAlign="TextAlign.Left" />
+        <GridColumn Field="Description" HeaderText="Description" Width="200" />
+        <GridColumn Field="Family_Code" HeaderText="Fam Code" Width="120" />
+        <GridColumn Field="Family_Code_Description" HeaderText="Family" Width="120" />
+        <GridColumn Field="PrivateLabelText"
+                    HeaderText="Private Label"
+                    
+                    TextAlign="TextAlign.Center"
+                    Width="120" />
+
+
+        <!-- Original prices -->
+        <GridColumn HeaderText="PP1 $4k Price" TextAlign="TextAlign.Center">
+            <GridColumns>
+                <GridColumn Field="PP1Price" HeaderText="Old PP1" Format="C2" TextAlign="TextAlign.Right" Width="120" Visible="@(selectedPriceListIds.Contains("PP1"))" />
+                <GridColumn Field="NewPP1Price" HeaderText="New PP1" Format="C2" TextAlign="TextAlign.Right" Width="140" Visible="@(selectedPriceListIds.Contains("PP1"))" />
+            </GridColumns>
+        </GridColumn>
+        
+        <GridColumn HeaderText="PP2 $12.5k Price" TextAlign="TextAlign.Center">
+            <GridColumns>
+                <GridColumn Field="PP2Price" HeaderText="Old PP2" Format="C2" TextAlign="TextAlign.Right" Width="120" Visible="@(selectedPriceListIds.Contains("PP2"))" />
+                <GridColumn Field="NewPP2Price" HeaderText="New PP2" Format="C2" TextAlign="TextAlign.Right" Width="140" Visible="@(selectedPriceListIds.Contains("PP2"))" />
+            </GridColumns>
+        </GridColumn>
+        
+        <GridColumn HeaderText="BM1 $4k Price" TextAlign="TextAlign.Center">
+            <GridColumns>
+                <GridColumn Field="BM1Price" HeaderText="Old BM1" Format="C2" TextAlign="TextAlign.Right" Width="120" Visible="@(selectedPriceListIds.Contains("BM1"))" />
+                <GridColumn Field="NewBM1Price" HeaderText="New BM1" Format="C2" TextAlign="TextAlign.Right" Width="140" Visible="@(selectedPriceListIds.Contains("BM1"))" />
+            </GridColumns>
+        </GridColumn>
+        
+        <GridColumn HeaderText="BM2 $12.5k Price" TextAlign="TextAlign.Center">
+            <GridColumns>
+                <GridColumn Field="BM2Price" HeaderText="Old BM2" Format="C2" TextAlign="TextAlign.Right" Width="120" Visible="@(selectedPriceListIds.Contains("BM2"))" />
+                <GridColumn Field="NewBM2Price" HeaderText="New BM2" Format="C2" TextAlign="TextAlign.Right" Width="140" Visible="@(selectedPriceListIds.Contains("BM2"))" />
+            </GridColumns>
+        </GridColumn>
+        
+        <GridColumn HeaderText="FOB Price" TextAlign="TextAlign.Center">
+            <GridColumns>
+                <GridColumn Field="FOBPrice" HeaderText="Old FOB Price" Format="C2" TextAlign="TextAlign.Right" Width="120" Visible="@(selectedPriceListIds.Contains("FOB"))" />
+                <GridColumn Field="NewFOBPrice" HeaderText="New FOB Price" Format="C2" TextAlign="TextAlign.Right" Width="140" Visible="@(selectedPriceListIds.Contains("FOB"))" />
+            </GridColumns>
+        </GridColumn>
+
+
+        
+
+
+        <GridColumn Field="ItemStatusText" HeaderText="Item Status" TextAlign="TextAlign.Right" Width="140" />
+
+
+        
+        
+        
+       
+       
+       
+    </GridColumns>
+        </SfGrid>
+    }
+    
+
 }
+
 
 <style>
   .e-grid .e-headercell {
@@ -211,9 +304,36 @@ else
 
 @code {
     private List<PCFDetail> pcfDetails = new();
+
     private SfGrid<PCFDetail> MyPcfGrid;
+
+    private SfGrid<ItemPriceDto> MyPriceListGrid;
+    private List<ItemPriceDto> itempricelists = new();
+    private List<string> selectedPriceListIds { get; set; } = new();
+
+
     private bool isLoading = true;
-    private string mode = "PCF";
+    private string _mode = "PCF";
+    private string Mode
+    {
+        get => _mode;
+        set
+        {
+            _mode = value;
+            // every time mode changes, reset all the UI flags:
+            showPcfGrid       = false;
+            showPriceListGrid = false;
+            showGridButton    = false;
+            showApplyButton   = false;
+
+            // now turn on the bits you want:
+            showGridButton = true;
+          //  if (value == "PCF")
+           //     showPcfGrid = true;
+          //  else if (value == "PriceList")
+         //       showPriceListGrid = true;
+        }
+    }
     private string selectedPriceListId = "PP1";
 
     private bool showPcfGrid = false;
@@ -244,6 +364,17 @@ else
     new PriceList { Id = "FOB", Name = "FOB Price List" }
   };
 
+
+    private void OnCheckboxChanged(string id, bool isChecked)
+    {
+        if (isChecked)
+            selectedPriceListIds.Add(id);
+        else
+            selectedPriceListIds.Remove(id);
+
+        // now selectedPriceListIds has the up-to-date selection
+    }
+
     private Dictionary<string, double> codeIncreases = new();
     private bool showReviewDialog = false;
     private bool showFamilyCodeSelector = true;
@@ -267,13 +398,13 @@ else
 
     private Task OnModeChanged(Syncfusion.Blazor.Inputs.ChangeEventArgs<string> args)
     {
-        mode = args.Value;
+        Mode = args.Value;
         return Task.CompletedTask;
     }
 
     private async Task GetData()
     {
-        if (mode == "PCF")
+        if (Mode == "PCF")
         {
             isLoading = true;
             pcfDetails = await DataService.GetAllPCFDetailsAsync();
@@ -283,13 +414,25 @@ else
             isLoading = false;
             showGridButton = false;
             showApplyButton = true;
-           
+
             StateHasChanged();
         }
+        else if (Mode == "PriceList")
+        {
+            isLoading = true;
+            itempricelists = await DataService.GetAllItemPricesOnPriceLists();
+            showPcfGrid = false;
+            showPriceListGrid = true;
+            isLoading = false;
+            showGridButton = false;
+            showApplyButton = true;
+
+            StateHasChanged();
+
+        }
+
+
     }
-
-
-
 
 
     private Task OnPriceListChanged(ChangeEventArgs<string, PriceList> args)
@@ -307,23 +450,56 @@ else
 
     private async Task ApplyIncreases()
     {
-
-        await FilterGridByFamilyCodesAsync();
-
-        var visible = await MyPcfGrid.GetFilteredRecordsAsync();
-        foreach (var obj in (IEnumerable<PCFDetail>)visible)
+        if (Mode == "PCF")
         {
-            if (obj.Family_Code != null && codeIncreases.TryGetValue(obj.Family_Code, out var pct))
-                obj.NewPrice = Math.Round(obj.ApprovedPriceDecimal * (decimal)(1 + pct / 100.0), 2);
-            else
-                obj.NewPrice = obj.ApprovedPriceDecimal;
+            await FilterGridByFamilyCodesAsync();
+
+            var visible = await MyPcfGrid.GetFilteredRecordsAsync();
+            foreach (var obj in (IEnumerable<PCFDetail>)visible)
+            {
+                if (obj.Family_Code != null && codeIncreases.TryGetValue(obj.Family_Code, out var pct))
+                    obj.NewPrice = Math.Round(obj.ApprovedPriceDecimal * (decimal)(1 + pct / 100.0), 2);
+                else
+                    obj.NewPrice = obj.ApprovedPriceDecimal;
+            }
+
+            await MyPcfGrid.Refresh();
         }
-        await MyPcfGrid.Refresh();
+        else if (Mode == "PriceList")
+        {
+            // For Price List mode, apply increases to item prices
+            await FilterGridByFamilyCodesAsync();
+            var visible = await MyPriceListGrid.GetFilteredRecordsAsync();
+            foreach (var obj in (IEnumerable<ItemPriceDto>)visible)
+            {
+                if (obj.Family_Code != null && codeIncreases.TryGetValue(obj.Family_Code, out var pct))
+                {
+                    obj.NewListPrice = Math.Round(obj.ListPrice * (decimal)(1 + pct / 100.0), 2);
+                    obj.NewPP1Price = Math.Round(obj.PP1Price * (decimal)(1 + pct / 100.0), 2);
+                    obj.NewPP2Price = Math.Round(obj.PP2Price * (decimal)(1 + pct / 100.0), 2);
+                    obj.NewBM1Price = Math.Round(obj.BM1Price * (decimal)(1 + pct / 100.0), 2);
+                    obj.NewBM2Price = Math.Round(obj.BM2Price * (decimal)(1 + pct / 100.0), 2);
+                    obj.NewFOBPrice = Math.Round(obj.FOBPrice * (decimal)(1 + pct / 100.0), 2);
+                }
+                else
+                {
+                    // If no increase defined, keep original prices
+                    obj.NewListPrice = obj.ListPrice;
+                    obj.NewPP1Price = obj.PP1Price;
+                    obj.NewPP2Price = obj.PP2Price;
+                    obj.NewBM1Price = obj.BM1Price;
+                    obj.NewBM2Price = obj.BM2Price;
+                    obj.NewFOBPrice = obj.FOBPrice;
+                }
+            }
+            await MyPriceListGrid.Refresh();
+        }
     }
+
 
     private async Task FilterGridByFamilyCodesAsync()
     {
-        if (mode == "PCF")
+        if (Mode == "PCF")
         {
 
 
@@ -332,11 +508,33 @@ else
             else
                 await MyPcfGrid.ClearFilteringAsync();
         }
+        else if (Mode == "PriceList")
+        {
+            if (selectedFamilyCodes.Any())
+                await MyPriceListGrid.FilterByColumnAsync("Family_Code", "equal", selectedFamilyCodes);
+            else
+                await MyPriceListGrid.ClearFilteringAsync();
+        }
+
     }
 
 
 
 private void CloseReviewDialog() => showReviewDialog = false;
+
+public async Task PLToolbarClickHandler(Syncfusion.Blazor.Navigations.ClickEventArgs args)
+{
+        if (args.Item.Id == "PLGrid_excelexport")
+    {
+        var ExcelFileName = $"PriceListIncreases_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+        ExcelExportProperties exportProperties = new ExcelExportProperties
+        {
+            FileName = ExcelFileName
+        };
+        await this.MyPriceListGrid.ExportToExcelAsync(exportProperties);
+    }
+
+    }
 
 
 public async Task ToolbarClickHandler(Syncfusion.Blazor.Navigations.ClickEventArgs args)

@@ -1222,6 +1222,7 @@ EXEC sp_executesql @query;
         cc.City as BillToCity,
         cc.State as BTState,
         cc.Zip as BTZip,
+        cc.EUT,
         i.PCFNumber,
         i.ItemNum,
         it.Stat as ItemStatus, 
