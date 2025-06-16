@@ -364,3 +364,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /BlazorServerDatagridApp2OLD.csproj
 /BlazorServerDatagridApp2OLD.slnx
+/BlazorServerDatagridApp2/Pages/PriceIncreaseTool.razor.txt
