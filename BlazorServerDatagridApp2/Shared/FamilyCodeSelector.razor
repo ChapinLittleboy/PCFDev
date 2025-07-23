@@ -63,14 +63,17 @@
         get => SelectedCodes;
         set
         {
-            SelectedCodes = value;
+
+            var codes = value ?? Array.Empty<string>();
+
+            SelectedCodes = codes;
             // Initialize or clean up percentages
-            foreach (var code in value)
+            foreach (var code in codes)
             {
                 if (!CodeIncreases.ContainsKey(code))
                     CodeIncreases[code] = 0;
             }
-            var removed = CodeIncreases.Keys.Except(value).ToList();
+            var removed = CodeIncreases.Keys.Except(codes).ToList();
             foreach (var code in removed)
                 CodeIncreases.Remove(code);
 
