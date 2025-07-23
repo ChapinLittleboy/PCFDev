@@ -176,8 +176,24 @@ public class DataService
         if (_mapper == null)
             throw new InvalidOperationException("Mapper is not initialized.");
 
+        var dto = _mapper.Map<PCFHeaderDTO>(headerEntity);
 
-        return _mapper.Map<PCFHeaderDTO>(headerEntity);
+        // Fetch rep info from linked server
+        var repInfo = await connection.QuerySingleOrDefaultAsync<(string RepName, string RepAgency, string RepEmail)>(
+            @"SELECT RepCode AS RepName, AgencyName AS RepAgency, EmailList AS RepEmail
+          FROM CIISQL10.[Bat_App].[dbo].[Chap_SalesRepEmail] sre
+          join CIISQL10.[Bat_App].[dbo].[customer_mst] cu0 on sre.RepCode = cu0.slsman 
+          where ltrim(cu0.cust_num) = @CustNum and cu0.cust_seq = 0",
+            new { CustNum = headerEntity.CustNum });
+
+        if (repInfo != default)
+        {
+            dto.RepName = repInfo.RepName;
+            dto.RepAgency = repInfo.RepAgency;
+            dto.RepEmail = repInfo.RepEmail;
+        }
+
+        return dto;
     }
 
 
@@ -1259,7 +1275,7 @@ EXEC sp_executesql @query;
 
         using var connection = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
 
-        string query = @"SELECT DISTINCT family_code, description as family_name
+        string query = @"SELECT DISTINCT UPPER(family_code) as family_code, description as family_name
                          FROM famcode_mst 
                          WHERE family_code IS NOT NULL AND family_code <> '' 
                          ORDER BY family_code";
@@ -1274,7 +1290,7 @@ EXEC sp_executesql @query;
         var sql = @"SELECT 
     im.item, 
     im.description, 
-    im.family_code,
+    UPPER(im.family_code) as family_code,
     fc.description as Family_Code_Description,
     ip.effect_date AS EffectiveDate, 
     ISNULL(ip.unit_price1, 0.0) AS ListPrice,

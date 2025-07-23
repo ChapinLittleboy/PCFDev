@@ -375,7 +375,7 @@ else
         // now selectedPriceListIds has the up-to-date selection
     }
 
-    private Dictionary<string, double> codeIncreases = new();
+    private Dictionary<string, double> codeIncreases = new(StringComparer.OrdinalIgnoreCase);
     private bool showReviewDialog = false;
     private bool showFamilyCodeSelector = true;
 

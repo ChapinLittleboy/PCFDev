@@ -90,6 +90,33 @@ public class ExportService
         graphics.DrawString($"Customer: [{header.CustomerNumber}] {header.CustomerName}", headerFont, PdfBrushes.Black, new PointF(marginX, yPosition));
         yPosition += 20;
 
+        // Draw customer bill to information
+     
+        var format3 = new PdfStringFormat
+        {
+            WordWrap = PdfWordWrapType.Word
+        };
+
+        var element = new PdfTextElement(
+            $"Address: {header.CustomerInfo.BillToAddress1} {header.CustomerInfo.BillToAddress2} {header.CustomerInfo.BillToCity}, {header.CustomerInfo.BillToState} {header.CustomerInfo.BillToZip} 123123123123123123123 12312313 13212313",
+            infoFont,
+            PdfBrushes.Black
+        )
+        {
+            StringFormat = format3
+        };
+
+        float availableWidth = page.GetClientSize().Width - 2 * marginX;
+        var bounds = new RectangleF(marginX, yPosition, availableWidth, page.GetClientSize().Height - yPosition);
+
+        // Draw() returns a PdfTextLayoutResult with the exact rectangle it filled
+        PdfTextLayoutResult result = (PdfTextLayoutResult)element.Draw(page, bounds);           // :contentReference[oaicite:2]{index=2}
+
+        yPosition = result.Bounds.Bottom + 5;
+
+
+
+
         // Draw PCF info
 
 
@@ -256,7 +283,7 @@ Prices and product availability are also subject to change at any time due to ma
         // Generate the PDF
         MemoryStream pdfStream = CreatePCFPDF(header);
 
-        var subject = $"PCF: {header.PcfNumber} for Customer: {header.CustomerNumber} has been approved";
+        var subject = $"PCF: {header.PcfNumber} for Customer: {header.CustomerNumber} {header.CustomerName} has been approved";
         var filename = $"PCF {header.PcfNumber}_{header.CustomerNumber}.pdf";
         var body = @"
             <p>We are pleased to inform you that the Pricing Control Form has been approved. Please find the attached document for your records.</p>

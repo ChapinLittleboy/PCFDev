@@ -1038,7 +1038,7 @@ else
                 //await SendPCFEmailToSalesManagerAndRep(phDTO.CustomerNumber);
                 // After successful save, prompt the user
                 EmailQuestion = $"Would you like to email a PDF of the Pricing Control Form to the Sales Manager and Sales Rep? " +
-                                $"Email will be sent to {phDTO.CustomerInfo.SalesManagerName} and  {phDTO.RepName} .";
+                                $"Email will be sent to {phDTO.CustomerInfo.SalesManagerName} and  {phDTO.RepEmail} .";
 
                 showEmailDialog = true;
             }
