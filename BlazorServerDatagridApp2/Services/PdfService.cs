@@ -98,7 +98,7 @@ public class ExportService
         };
 
         var element = new PdfTextElement(
-            $"Address: {header.CustomerInfo.BillToAddress1} {header.CustomerInfo.BillToAddress2} {header.CustomerInfo.BillToCity}, {header.CustomerInfo.BillToState} {header.CustomerInfo.BillToZip} 123123123123123123123 12312313 13212313",
+            $"Address: {header.CustomerInfo.BillToAddress1} {header.CustomerInfo.BillToAddress2} {header.CustomerInfo.BillToCity}, {header.CustomerInfo.BillToState} {header.CustomerInfo.BillToZip}",
             infoFont,
             PdfBrushes.Black
         )
@@ -118,18 +118,25 @@ public class ExportService
 
 
         // Draw PCF info
-
+        
 
         // Draw effective date range
         string effectiveDateString = $"Approved prices for dates {header.StartDate:MM/dd/yyyy} through {header.EndDate:MM/dd/yyyy}";
         graphics.DrawString(effectiveDateString, infoFont, PdfBrushes.Black, new PointF(marginX, yPosition));
         yPosition += 15;
+        string paymentTerms = !string.IsNullOrWhiteSpace(header.PromoPaymentTermsText)
+            ? header.PromoPaymentTermsText
+            : header.CustomerInfo.PaymentTermsDescription;
 
-        string paymentTerms = header.PromoPaymentTermsText ?? header.CustomerInfo.PaymentTermsDescription;
+        
         graphics.DrawString($"Payment Terms: {paymentTerms}", infoFont, PdfBrushes.Black, new PointF(marginX, yPosition));
         yPosition += 15;
 
-        string freightTerms = header.FreightTerms ?? header.CustomerInfo.FreightTerms;
+        string freightTerms = !string.IsNullOrWhiteSpace(header.FreightTerms)
+            ? header.FreightTerms
+            : header.CustomerInfo.FreightTerms;
+
+       // string freightTerms = header.FreightTerms ?? header.CustomerInfo.FreightTerms;
         graphics.DrawString($"Freight Terms: {freightTerms}", infoFont, PdfBrushes.Black, new PointF(marginX, yPosition));
         yPosition += 15;
 

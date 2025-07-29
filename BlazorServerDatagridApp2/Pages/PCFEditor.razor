@@ -1037,10 +1037,25 @@ else
             {
                 //await SendPCFEmailToSalesManagerAndRep(phDTO.CustomerNumber);
                 // After successful save, prompt the user
-                EmailQuestion = $"Would you like to email a PDF of the Pricing Control Form to the Sales Manager and Sales Rep? " +
-                                $"Email will be sent to {phDTO.CustomerInfo.SalesManagerName} and  {phDTO.RepEmail} .";
+
+                
+                if (phDTO.RepID == "CHA")
+                {
+                    EmailQuestion = $"Sales Rep 'CHA' does not receive email notifications. Would you like to email a PDF of the Pricing Control Form to the Sales Manager ({phDTO.CustomerInfo.SalesManagerName}) only?";
+                }
+                else if (string.IsNullOrEmpty(phDTO.CustomerInfo.SalesRepEmail))
+                {
+                    EmailQuestion = $"The Sales Rep {phDTO.RepID} does not have an email defined. Would you like to email a PDF of the Pricing Control Form to the Sales Manager ({phDTO.CustomerInfo.SalesManagerName}) only?";
+                }
+                else
+                {
+                    EmailQuestion = $"Would you like to email a PDF of the Pricing Control Form to the Sales Manager ({phDTO.CustomerInfo.SalesManagerName}) and Sales Rep ({phDTO.CustomerInfo.SalesRepEmail})?";
+                }
 
                 showEmailDialog = true;
+
+
+
             }
 
         }
