@@ -29,9 +29,12 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.PromoFreightTerms, opt => opt.MapFrom(src => src.Standard_Freight_Terms))
 
             .ForMember(dest => dest.FreightMinimums, opt => opt.MapFrom(src =>
-                src.Freight_Minimums == "Other" ? src.Other_Freight_Minimums : src.Freight_Minimums))
+                src.Freight_Minimums != null && src.Freight_Minimums.StartsWith("Other", StringComparison.OrdinalIgnoreCase)
+                    ? src.Other_Freight_Minimums
+                    : src.Freight_Minimums))
             .ForMember(dest => dest.PromoFreightMinimums, opt => opt.MapFrom(src =>
-                src.Freight_Minimums == "Other" && !string.IsNullOrWhiteSpace(src.Other_Freight_Minimums)
+                src.Freight_Minimums != null && src.Freight_Minimums.StartsWith("Other", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(src.Other_Freight_Minimums)
                     ? src.Other_Freight_Minimums
                     : src.Freight_Minimums))
 

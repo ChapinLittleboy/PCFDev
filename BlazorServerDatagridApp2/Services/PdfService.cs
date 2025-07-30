@@ -1,4 +1,5 @@
-﻿using BlazorServerDatagridApp2.Models;
+﻿using BlazorServerDatagridApp2.Data;
+using BlazorServerDatagridApp2.Models;
 using Syncfusion.Pdf;
 using Syncfusion.Pdf.Graphics;
 using Syncfusion.Pdf.Grid;
@@ -91,7 +92,7 @@ public class ExportService
         yPosition += 20;
 
         // Draw customer bill to information
-     
+
         var format3 = new PdfStringFormat
         {
             WordWrap = PdfWordWrapType.Word
@@ -118,7 +119,7 @@ public class ExportService
 
 
         // Draw PCF info
-        
+
 
         // Draw effective date range
         string effectiveDateString = $"Approved prices for dates {header.StartDate:MM/dd/yyyy} through {header.EndDate:MM/dd/yyyy}";
@@ -128,17 +129,63 @@ public class ExportService
             ? header.PromoPaymentTermsText
             : header.CustomerInfo.PaymentTermsDescription;
 
-        
-        graphics.DrawString($"Payment Terms: {paymentTerms}", infoFont, PdfBrushes.Black, new PointF(marginX, yPosition));
+
+
+        string paymentTermsLabel = "Payment Terms:";
+
+        if (!string.IsNullOrWhiteSpace(header.PromoPaymentTerms) && header.PromoPaymentTermsText != header.CustomerInfo.PaymentTermsDescription)
+        {
+            paymentTermsLabel = "Promo Payment Terms:";
+        }
+        else
+        {
+            paymentTermsLabel = "[Standard] Payment Terms:";
+        }
+
+
+
+
+
+
+        graphics.DrawString($"{paymentTermsLabel} {paymentTerms}", infoFont, PdfBrushes.Black, new PointF(marginX, yPosition));
         yPosition += 15;
+
+
+        int promoFrtMinInt = FreightComparer.ConvertToInt(header.FreightMinimums);  // or should this be header.PromoFreightMinimums ?
+        int stdFrtMinInt = (int)header.CustomerInfo.FreightMinimums;
+
 
         string freightTerms = !string.IsNullOrWhiteSpace(header.FreightTerms)
             ? header.FreightTerms
             : header.CustomerInfo.FreightTerms;
 
-       // string freightTerms = header.FreightTerms ?? header.CustomerInfo.FreightTerms;
-        graphics.DrawString($"Freight Terms: {freightTerms}", infoFont, PdfBrushes.Black, new PointF(marginX, yPosition));
+        if (promoFrtMinInt > 0)
+        {
+            freightTerms = freightTerms + " with Min Order $" + promoFrtMinInt.ToString("N0");
+            ;
+        }
+
+        string freightTermsLabel = "Freight Terms:";
+
+        if (!FreightComparer.AreFreightTermsEqual(header.FreightTerms, header.CustomerInfo.FreightTerms,
+                FreightComparer.AreFreightMinimumsEqual(header.FreightMinimums, header.CustomerInfo.FreightMinimums.ToString())))
+        {
+            freightTermsLabel = "Promo Freight Terms:";
+        }
+        else
+        {
+            freightTermsLabel = "[Standard] Freight Terms:";
+        }
+
+
+
+
+        // string freightTerms = header.FreightTerms ?? header.CustomerInfo.FreightTerms;
+        graphics.DrawString($"{freightTermsLabel} {freightTerms}", infoFont, PdfBrushes.Black, new PointF(marginX, yPosition));
         yPosition += 15;
+
+
+
 
         if (!string.IsNullOrWhiteSpace(header.GeneralNotes))
         {
