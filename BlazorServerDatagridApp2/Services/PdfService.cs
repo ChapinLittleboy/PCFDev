@@ -1,6 +1,7 @@
 ﻿using BlazorServerDatagridApp2.Data;
 using BlazorServerDatagridApp2.Models;
 using Syncfusion.Pdf;
+using Syncfusion.Pdf.ColorSpace;
 using Syncfusion.Pdf.Graphics;
 using Syncfusion.Pdf.Grid;
 using System.Net;
@@ -135,11 +136,11 @@ public class ExportService
 
         if (!string.IsNullOrWhiteSpace(header.PromoPaymentTerms) && header.PromoPaymentTermsText != header.CustomerInfo.PaymentTermsDescription)
         {
-            paymentTermsLabel = "Promo Payment Terms:";
+            paymentTermsLabel = "Payment Terms:";
         }
         else
         {
-            paymentTermsLabel = "[Standard] Payment Terms:";
+            paymentTermsLabel = "Payment Terms:";
         }
 
 
@@ -154,7 +155,7 @@ public class ExportService
         int promoFrtMinInt = FreightComparer.ConvertToInt(header.FreightMinimums);  // or should this be header.PromoFreightMinimums ?
         int stdFrtMinInt = (int)header.CustomerInfo.FreightMinimums;
 
-
+        /*
         string freightTerms = !string.IsNullOrWhiteSpace(header.FreightTerms)
             ? header.FreightTerms
             : header.CustomerInfo.FreightTerms;
@@ -164,17 +165,41 @@ public class ExportService
             freightTerms = freightTerms + " with Min Order $" + promoFrtMinInt.ToString("N0");
             ;
         }
+        */
+
+        string freightTerms = !string.IsNullOrWhiteSpace(header.FreightTerms)
+            ? header.FreightTerms
+            : header.CustomerInfo.FreightTerms;
+
+        // Coalesce the minimum string from both possible sources
+        string minimumStr = !string.IsNullOrWhiteSpace(header.FreightMinimums)
+            ? header.FreightMinimums
+            : !string.IsNullOrWhiteSpace(header.CustomerInfo.FreightMinimums.ToString())
+                ? header.CustomerInfo.FreightMinimums.ToString()
+                : "0";
+
+        // Convert to integer using your custom converter
+        int minimum = FreightComparer.ConvertToInt(minimumStr);
+
+        // Only add the "with Min Order $" if terms start with "PPD"
+        if (freightTerms.StartsWith("PPD", StringComparison.OrdinalIgnoreCase))
+        {
+            freightTerms = freightTerms + " with Min Order $" + minimum.ToString("N0");
+        }
+
+
+
 
         string freightTermsLabel = "Freight Terms:";
 
         if (!FreightComparer.AreFreightTermsEqual(header.FreightTerms, header.CustomerInfo.FreightTerms,
                 FreightComparer.AreFreightMinimumsEqual(header.FreightMinimums, header.CustomerInfo.FreightMinimums.ToString())))
         {
-            freightTermsLabel = "Promo Freight Terms:";
+            freightTermsLabel = "Freight Terms:";
         }
         else
         {
-            freightTermsLabel = "[Standard] Freight Terms:";
+            freightTermsLabel = "Freight Terms:";
         }
 
 
@@ -227,8 +252,23 @@ the right to correct the pricing or product information at our discretion.
 Prices and product availability are also subject to change at any time due to market conditions, supplier adjustments, or other unforeseen factors. Should any changes be necessary, we will provide notice as promptly as possible. This agreement is not intended to create any binding obligation beyond the terms and conditions set forth herein.
 ";
 
+        string htmlText =
+            "*** This document is for reference only and does not replace signed contract ***" +
+            $"<br />{disclaimer} " +
+            $"<br />{contactString}" +
+            $"<br /><b>Reference: {header.PCFTypeDescription} PCF {header.PcfNumber}</b>";
+
+        RectangleF headerBounds2 = new RectangleF(marginX, yPosition, clientSize.Width - (2 * marginX), 152);
+        PdfHTMLTextElement richElement = new PdfHTMLTextElement(htmlText, smallFont, PdfBrushes.Black);
+        richElement.Draw(graphics, headerBounds2);
+        
 
 
+        var x = headerBounds2.Bottom;
+        yPosition = headerBounds2.Bottom;// More spacing for clarity
+
+        /*
+        
         string headerText =
             $"*** This document is for reference only and does not replace signed contract ***" +
             $"\n{disclaimer} " +
@@ -239,8 +279,8 @@ Prices and product availability are also subject to change at any time due to ma
         PdfStringFormat format2 = new PdfStringFormat { LineSpacing = 3, WordWrap = PdfWordWrapType.Word };
         graphics.DrawString(headerText, smallFont, PdfBrushes.Black, headerBounds2, format2);
         yPosition += 160; // More spacing for clarity
-
-
+        
+        */
 
 
         /*

@@ -15,7 +15,8 @@ using System.Data;
 
 
 
-Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense("Ngo9BigBOggjHTQxAR8/V1NDaF5cWWtCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdnWXZccHVWQ2NZUkd+XkA=");
+//Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense("Ngo9BigBOggjHTQxAR8/V1NDaF5cWWtCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdnWXZccHVWQ2NZUkd+XkA="); // was working
+Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense("Ngo9BigBOggjHTQxAR8/V1NDaF5cWWtCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdmWXdedXVURWFZUkZwXUJWYU4=");  // v27
 var builder = WebApplication.CreateBuilder(args);
 if (builder.Environment.IsProduction())
 {
