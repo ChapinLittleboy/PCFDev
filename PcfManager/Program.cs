@@ -11,7 +11,8 @@ using Serilog;
 using Serilog.Events;
 using Syncfusion.Blazor;
 using System.Data;
-
+using Microsoft.AspNetCore.Components.Server.Circuits;
+using PcfManager.Infrastructure;
 
 
 
@@ -96,7 +97,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<ExportService>();
 
 builder.Services.AddScoped<IPriceCalculationService, PriceCalculationService>();
-
+// Register the handler:
+builder.Services.AddSingleton<CircuitHandler, LoggingCircuitHandler>();
 
 
 //builder.Services.AddAuthentication(IISDefaults.AuthenticationScheme);
