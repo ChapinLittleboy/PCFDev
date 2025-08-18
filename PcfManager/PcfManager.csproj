@@ -101,5 +101,8 @@
     </EmbeddedResource>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Chapin.PriceBook\Chapin.PriceBook.csproj" />
+  </ItemGroup>
   
 </Project>

@@ -1,0 +1,90 @@
+﻿@page "/pricebook"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<h3 class="mb-3">Generate MSD Price Book</h3>
+
+<EditForm Model="_vm" OnValidSubmit="GenerateAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label class="form-label">Template path</label>
+        <InputText class="form-control" @bind-Value="_vm.TemplatePath" />
+        <div class="form-text">Path on the server where the Blazor app is running.</div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Source</label>
+        <InputSelect class="form-select" @bind-Value="_vm.SourceKey">
+            <option value="sql">SQL (ItemPrice_mst)</option>
+            <!-- <option value="alt">Alt Source</option> -->
+        </InputSelect>
+    </div>
+
+    <div class="form-check mb-3">
+        <InputCheckbox class="form-check-input" @bind-Value="_vm.ExcludeFuturePrices" />
+        <label class="form-check-label">Exclude future-dated prices</label>
+    </div>
+
+    <button class="btn btn-primary" type="submit" disabled="@_busy">
+        @_buttonText
+    </button>
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="text-danger mt-3">@_error</div>
+    }
+    <a class="btn btn-primary" href="/pricebook/generate">Generate & Download new</a>
+</EditForm>
+
+@code {
+    private GenerateVm _vm = new()
+    {
+        //TemplatePath = @"C:\data\HDA MSD Price Book Template v2.xlsx",
+        TemplatePath = @"C:\users\willit2\Downloads\HDA MSD Price Book Template v2.xlsx",
+        SourceKey = "sql",
+        ExcludeFuturePrices = true
+    };
+
+    private bool _busy;
+    private string _buttonText => _busy ? "Generating..." : "Generate & Download";
+    private string? _error;
+
+    private sealed class GenerateVm
+    {
+        public string TemplatePath { get; set; } = "";
+        public string SourceKey { get; set; } = "sql";
+        public bool ExcludeFuturePrices { get; set; } = true;
+    }
+
+    private async Task GenerateAsync()
+    {
+        _error = null;
+        _busy = true;
+        try
+        {
+            // POST the request to your minimal endpoint
+            //var resp = await Http.PostAsJsonAsync("/pricebook/generate", _vm);
+            //resp.EnsureSuccessStatusCode();
+            var url = Nav.ToAbsoluteUri("/pricebook/generate");
+            var resp = await Http.PostAsJsonAsync(url, _vm);
+
+            // read the XLSX bytes
+            var bytes = await resp.Content.ReadAsByteArrayAsync();
+
+            // stream them to JS for a client-side download
+            var fileName = "MSD Price Book (Generated).xlsx";
+             using var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

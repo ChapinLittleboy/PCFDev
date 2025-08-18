@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FileProcessingLib", "FilePr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PcfManager", "PcfManager\PcfManager.csproj", "{876B2C1A-6BAE-732F-F185-98C094D60604}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chapin.PriceBook", "Chapin.PriceBook\Chapin.PriceBook.csproj", "{8643A3F7-2214-414E-B031-C570C2704645}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -19,6 +21,10 @@ Global
 		{876B2C1A-6BAE-732F-F185-98C094D60604}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{876B2C1A-6BAE-732F-F185-98C094D60604}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{876B2C1A-6BAE-732F-F185-98C094D60604}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8643A3F7-2214-414E-B031-C570C2704645}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8643A3F7-2214-414E-B031-C570C2704645}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8643A3F7-2214-414E-B031-C570C2704645}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8643A3F7-2214-414E-B031-C570C2704645}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

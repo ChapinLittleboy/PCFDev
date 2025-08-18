@@ -3,6 +3,7 @@ using Blazored.FluentValidation;
 using PcfManager.Data;
 using PcfManager.Models;
 using PcfManager.Services;
+using Chapin.PriceBook;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.Data.SqlClient;
@@ -111,9 +112,13 @@ builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("D
 builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<PCFPageState>();
 
+var cs = builder.Configuration.GetConnectionString("CiiSQL10ro")
+         ?? builder.Configuration["ConnectionStrings:CiiSQL10ro"]!;
+builder.Services.AddSingleton<IDataSource>(new SqlDataSource(cs));
+// If you add another source: builder.Services.AddSingleton<IDataSource>(new AltDataSource(...));
 
-
-
+// Register generator
+builder.Services.AddSingleton<IPriceBookGenerator, PriceBookGenerator>();
 
 //builder.Services.AddAuthorization();
 
@@ -172,6 +177,27 @@ app.Use(async (context, next) =>
         context.Response.Redirect("/PCFs"); // Redirect to a custom error page
     }
 });
+
+
+app.MapPost("/pricebook/generate", async (IPriceBookGenerator gen) =>
+{
+    var req = new PriceBookRequest(
+        TemplatePath: "C:/Users/Willit2/Downloads/HDA MSD Price Book Template v2.xlsx",
+        SourceKey: "sql",
+        ExcludeFuturePrices: true,
+        OutputFileName: "MSD Price Book (Generated).xlsx"
+    );
+
+    var bytes = await gen.GenerateAsync(req);
+    return Results.File(
+        bytes,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        req.OutputFileName ?? "PriceBook.xlsx");
+});
+
+
+
+
 
 
 app.Run();
