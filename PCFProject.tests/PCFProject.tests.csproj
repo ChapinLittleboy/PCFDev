@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BlazorServerDatagridApp2\BlazorServerDatagridApp2.csproj" />
+    <ProjectReference Include="..\PCFManager\PcfManager.csproj" />
   </ItemGroup>
 
   <ItemGroup>

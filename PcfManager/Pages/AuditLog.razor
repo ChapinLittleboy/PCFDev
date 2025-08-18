@@ -1,0 +1,42 @@
+﻿@page "/audit-log/{recordKey}"
+@inject DataService DataService
+@using PcfManager.Models
+@using Syncfusion.Blazor.Grids
+
+<PageTitle>Audit Log</PageTitle>
+
+<h3>Audit Log</h3>
+
+@if (auditLogs == null)
+{
+    <p>Loading...</p>
+}
+else if (!auditLogs.Any())
+{
+    <p>No changes found for this record.</p>
+}
+else
+{
+    <SfGrid DataSource="auditLogs" AllowSorting="true" AllowFiltering="true" AllowGrouping="true" AllowPaging="true" >
+        <GridColumns>
+            <GridColumn Field="ChangedDate" HeaderText="Changed Date" Format="MM/dd/yyyy hh:mm" Type="ColumnType.DateTime" Width="150" TextAlign="TextAlign.Center"></GridColumn>
+            <GridColumn Field="ChangedBy" HeaderText="Changed By" Width="120" TextAlign="TextAlign.Left"></GridColumn>
+            <GridColumn Field="FieldName" HeaderText="Field Name" Width="120" TextAlign="TextAlign.Left"></GridColumn>
+            <GridColumn Field="OldValue" HeaderText="Old Value" Width="150" TextAlign="TextAlign.Left"></GridColumn>
+            <GridColumn Field="NewValue" HeaderText="New Value" Width="150" TextAlign="TextAlign.Left"></GridColumn>
+        </GridColumns>
+    </SfGrid>
+}
+
+@code {
+    [Parameter]
+    public string RecordKey { get; set; }
+
+    private List<PcfAuditLog> auditLogs;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Fetch audit logs for the provided record key
+        auditLogs = await DataService.GetAuditLogs(RecordKey);
+    }
+}

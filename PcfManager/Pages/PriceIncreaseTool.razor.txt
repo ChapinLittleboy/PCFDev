@@ -1,0 +1,469 @@
+﻿@page "/price-increase-tool"
+@using PcfManager.Models
+@using Syncfusion.Blazor.Grids
+@using Syncfusion.Blazor.Spinner
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.DropDowns
+@using Syncfusion.Blazor.Popups
+@using Microsoft.Extensions.Logging
+@using Microsoft.IdentityModel.Tokens
+@inject DataService DataService
+@inject ILogger<PriceIncreaseTool> Logger
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Price Increase Rpt</PageTitle>
+
+<!-- Worksheet header row: left for title, center for button -->
+<div class="worksheet-header-row">
+    <div class="worksheet-header-title">
+        <h5 style="margin: 0;">Price Increase Worksheet Tool</h5>
+    </div>
+    <div class="worksheet-header-btn">
+        @if (percentagesSet)
+        {
+            <SfButton CssClass="e-outline" @onclick="ShowReviewDialog">Review Selected Family Codes</SfButton>
+        }
+    </div>
+    <div class="worksheet-header-spacer"></div>
+</div>
+
+<SfDialog @bind-Visible="showReviewDialog" Width="500px" IsModal="true" ShowCloseIcon="true" Header="Review Selected Family Codes" >
+    <div>
+        <table class="table table-sm table-bordered" style="width:100%">
+            <thead>
+                <tr>
+                    <th>Family Code</th>
+                    <th>Family Name</th>
+                    <th>% Increase</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var code in selectedFamilyCodes)
+                {
+                    var fam = allFamilies.FirstOrDefault(f => f.family_code == code);
+                    <tr>
+                        <td>@(code)</td>
+                        <td>@(fam?.family_name)</td>
+                        <td>@(codeIncreases.ContainsKey(code) ? codeIncreases[code].ToString("0.##") : "")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <div style="text-align:right; margin-top:1rem;">
+            <SfButton CssClass="e-primary" @onclick="CloseReviewDialog">Close</SfButton>
+        </div>
+    </div>
+</SfDialog>
+
+@if (isLoading)
+{
+    <div style="width:100%;text-align:center">
+        <SfSpinner Visible="true" Size="50"></SfSpinner>
+    </div>
+}
+else
+{
+    @if (!confirmedSelection)
+    {
+
+
+        <div id="listbox-control">
+            <div class="dual-list-wrapper" style="display: flex; gap: 2rem; margin-left: 10%;">
+                <div class="dual-list-groupa">
+                    <h5>Select your Family Codes</h5>
+                    <SfListBox TItem="FamilyCode"
+                               DataSource="@allFamilies"
+                               Height="400px"
+                               TValue="string[]"
+                               @bind-Value="@selectedFamilyCodes"
+                               
+                              >
+                        <ListBoxSelectionSettings ShowCheckbox="true"></ListBoxSelectionSettings>
+                      
+                        <ListBoxFieldSettings Text="family_display" Value="family_code"></ListBoxFieldSettings>
+                    </SfListBox>
+                </div>
+            </div>
+        </div>
+
+        <SfButton CssClass="e-primary" @onclick="ConfirmSelection" >
+            Next: Set Percentages
+        </SfButton>
+
+    }
+    else if (!percentagesSet)
+    {
+        <div class="mb-4">
+            <h5>Step 2: Set % Increase for Each Family Code</h5>
+
+            <table>
+                <thead>
+                <tr>
+                    <th>Family Code</th>
+                    <th>% Increase</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var Code in selectedFamilyCodes)
+                {
+                    <tr>
+                        <td>@Code</td>
+                        <td>
+                            <SfNumericTextBox @bind-Value="codeIncreases[Code]" 
+                                              Placeholder="Percent" 
+                                              Min="0" 
+                                              Max="100"
+                                              Format="##.##"
+                                              FloatLabelType="FloatLabelType.Never"
+                                              Width="120px"
+                                              ShowSpinButton="false" />
+                            %
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+
+        </div>
+        <SfButton CssClass="e-primary" @onclick="PercentagesSet" >
+            Next: Filter data grid and export
+        </SfButton>
+    }
+    else
+    {
+ 
+
+    
+        <div class="mt-2 d-flex align-items-center">
+            <!--<SfButton CssClass="e-success" IsPrimary="true" OnClick="ApplyIncreases">Apply Increases</SfButton> -->
+            <SfButton CssClass="e-link ml-2" @onclick="() => { confirmedSelection = false; percentagesSet = false; }">Back</SfButton>
+            <span style="font-weight:bold; color:red; font-size:0.8rem; margin-left:1.5rem;">Best Practice:  Confirm New Prices</span>
+        </div>
+    }
+
+    <SfGrid ID="PcfsGrid" @ref="MyGrid"
+            DataSource="@pcfDetails"
+            AllowSorting="true" AllowPaging="true" AllowFiltering="true"
+            AllowExcelExport="true"
+            Toolbar="@(new string[] { "ExcelExport", "Export by SalesManager", "ClearFilters",  "ColumnChooser" })"
+            AllowReordering="true" AllowResizing="true"
+            ShowColumnChooser="true"
+            AllowGrouping="true"
+            AllowTextWrap="true"
+            Height="600px" Width="90%"
+            >
+                <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel"></GridFilterSettings>
+        <GridTextWrapSettings WrapMode="WrapMode.Header" />
+        <GridEvents OnToolbarClick="ToolbarClickHandler" TValue="PCFDetail"></GridEvents>
+        <GridPageSettings PageSize="20" PageSizes="@(new string[] { "10", "20", "50", "100", "All" })"></GridPageSettings>
+        <GridColumns>
+            <GridColumn Field="PCFNum" HeaderText="PCF #" TextAlign="TextAlign.Center" Width="90" Type="ColumnType.Number" />
+            <GridColumn Field="CustomerNumber" HeaderText="Cust #" Width="90" />
+            <GridColumn Field="CustomerName" HeaderText="Cust Name" Width="150" />
+            <GridColumn Field="StartDate" HeaderText="Start Date" Format="d" Type="ColumnType.Date" Width="90" />
+            <GridColumn Field="EndDate" HeaderText="End Date" Format="d" Type="ColumnType.Date" Width="90" />
+            <GridColumn Field="PcfType" HeaderText="Type" Width="90" />
+            <GridColumn Field="BuyingGroup" HeaderText="Buying Group" Width="110" />
+            <GridColumn Field="BTState" HeaderText="State" Width="90" />
+            <GridColumn Field="ItemNum" HeaderText="Item #" Width="90" />
+            <GridColumn Field="ItemDesc" HeaderText="Item Description" Width="200" />
+            <GridColumn Field="ItemStatusText" HeaderText="Item Status" Width="100" />
+            <GridColumn Field="PrivateLabelText" HeaderText="Private Label" Width="110" />
+            <GridColumn Field="Family_Code" HeaderText="Family Code" Width="100" />
+            <!--<GridColumn Field="Family_Name" HeaderText="Family Name" Width="100" /> -->
+            <GridColumn Field="ApprovedPriceDecimal" HeaderText="Current Price" Width="120" Format="C2" />
+            <GridColumn Field="NewPrice" HeaderText="New Price" Width="120" Format="C2" />
+            <GridColumn Field="SalesManager" HeaderText="SalesMgr" Width="120"  />
+            <GridColumn Field="Salesman" HeaderText="RepCode" Width="120" Visible="true" />
+            <GridColumn Field="CustomerPCFGroup" HeaderText="Customer/PCF" Visible="false"></GridColumn>
+            <GridColumn Field="CustomerNamePCFGroup" HeaderText="Customer/PCF" Visible="false"></GridColumn>
+
+        </GridColumns>
+    </SfGrid>
+}
+
+
+@code {
+    private List<PCFDetail> pcfDetails = new();
+    private SfGrid<PCFDetail> MyGrid;
+    private bool isLoading = true;
+
+
+
+
+    // All families from the DB
+    private List<FamilyCode> allFamilies = new();
+
+
+    private string[] _selectedFamilyCodes = Array.Empty<string>();
+    public string[] selectedFamilyCodes
+    {
+        get => _selectedFamilyCodes;
+        set
+        {
+            _selectedFamilyCodes = value;
+            FilterGridByFamilyCodesAsync();  // This is called every time selection changes
+        }
+    }
+
+
+    // For percentage input
+    private Dictionary<string, double> codeIncreases = new(); // e.g., {"FAM01": 5.0, "FAM02": 2.5}
+    private bool confirmedSelection = false;
+    private bool percentagesSet = false;
+    private bool appliedIncreases = false;
+    private bool showReviewDialog = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isLoading = true;
+            pcfDetails = await DataService.GetAllPCFDetailsAsync();
+            pcfDetails = pcfDetails.Where(d => d.PCFStatus == 3).ToList();
+
+            // Populate allFamilies from your database/service
+            allFamilies = await DataService.GetAllFamilyCodesAsync();
+
+            isLoading = false;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error occurred while applying increases.");
+            // Optionally, show a message to the user or handle as needed.
+        }
+    }
+
+    // After picking codes, move to percentage entry
+    private void ConfirmSelection()
+    {
+        confirmedSelection = true;
+        // Initialize your percentage dictionary:
+        codeIncreases = allFamilies
+            .Where(f => selectedFamilyCodes.Contains(f.family_code))
+            .ToDictionary(f => f.family_code, f => 0.0);
+    }
+
+    private async void PercentagesSet()
+    {
+        percentagesSet = true;
+        await ApplyIncreases();
+        MyGrid.Refresh();
+
+
+    }
+
+
+    // Apply increases to grid
+    private async Task ApplyIncreases()
+    {
+        try
+        {
+            var visibleItems = await MyGrid?.GetFilteredRecordsAsync(); ; 
+
+            foreach (var itemObj in (IEnumerable<PCFDetail>)visibleItems)
+            {
+                var item = (PCFDetail)itemObj; // Cast if necessary
+                if (item.Family_Code != null && codeIncreases.TryGetValue(item.Family_Code, out var pct))
+                {
+                    item.NewPrice = Math.Round(item.ApprovedPriceDecimal * (decimal)(1 + pct / 100.0), 2);
+                    Console.WriteLine("hey");
+                }
+                else
+                {
+                    item.NewPrice = item.ApprovedPriceDecimal;
+                }
+            }
+
+            appliedIncreases = true;
+            Logger.LogInformation("Applied increases for codes: {Codes}", string.Join(", ", codeIncreases.Keys));
+            await MyGrid.Refresh();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error occurred in ApplyIncreases");
+        }
+    }
+
+    private async void FilterGridByFamilyCodesAsync()
+    {
+        if (selectedFamilyCodes != null && selectedFamilyCodes.Any())
+        {
+            // Multiple filters: use "or" operator and "equal" predicate
+            await MyGrid.FilterByColumnAsync(
+                "Family_Code",       // Column name
+                "equal",            // Operator
+                selectedFamilyCodes // List of filter values
+            );
+        }
+        else
+        {
+            // If no family codes are selected, clear the filter
+            await MyGrid.ClearFilteringAsync("FamilyCode");
+        }
+    }
+
+
+    private async Task OnListBoxChange(ChangeEventArgs args)
+    {
+      FilterGridByFamilyCodesAsync();
+    }
+
+   
+    private async Task ClearFilters()
+    {
+        await MyGrid.ClearFilteringAsync();
+        //await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "PcfsGrid");
+        // await JSRuntime.InvokeVoidAsync("location.reload");
+        // activeFilters = "None";
+        // StateHasChanged();
+    }
+
+    public async Task ToolbarClickHandler(Syncfusion.Blazor.Navigations.ClickEventArgs args)
+    {
+        if (args.Item.Id == "PcfsGrid_excelexport")
+        {
+            var ExcelFileName = $"PriceIncreases_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            ExcelExportProperties exportProperties = new()
+            {
+                FileName = ExcelFileName
+            };
+            await this.MyGrid.ExportToExcelAsync(exportProperties);
+        }
+        else if (args.Item.Id == "PcfsGrid_Export by SalesManager")
+        {
+            await ExportBySalesManagerAsync();
+        }
+        else if (args.Item.Id == "PcfsGrid_ClearFilters")
+        {
+            await MyGrid.ClearFilteringAsync();
+        }
+        else if (args.Item.Id == "PcfsGrid_Set Default Grouping")
+        {
+            await GroupBySalesInfo();
+        }
+        else if (args.Item.Id == "PcfsGrid_Clear Grouping")
+        {
+            await ClearGrouping();
+        }
+    }
+
+    private async Task ExportBySalesManagerAsync()
+    {
+        // Get all visible/filtered records from the grid
+      
+        var filtered = await MyGrid.GetFilteredRecordsAsync();
+        var allRecords = new List<PCFDetail>();
+        if (filtered is IEnumerable<PCFDetail> direct)
+            allRecords = direct.ToList();
+        else if (filtered is IEnumerable<object> objs)
+            allRecords = objs.OfType<PCFDetail>().ToList();
+        if (!allRecords.Any())
+            return;
+
+        // Group by SalesManager
+        var byManager = allRecords
+            .Where(x => !string.IsNullOrEmpty(x.SalesManager))
+            .GroupBy(x => x.SalesManager);
+
+        foreach (var managerGroup in byManager)
+        {
+            using var excelEngine = new Syncfusion.XlsIO.ExcelEngine();
+            var application = excelEngine.Excel;
+            application.DefaultVersion = Syncfusion.XlsIO.ExcelVersion.Xlsx;
+            var workbook = application.Workbooks.Create(1);
+            var firstSheet = workbook.Worksheets[0];
+            //firstSheet.Remove(); // Remove default sheet
+
+            // Group by Salesman for this manager
+            var bySalesman = managerGroup
+                .Where(x => !string.IsNullOrEmpty(x.Salesman))
+                .GroupBy(x => x.Salesman);
+
+            foreach (var salesmanGroup in bySalesman)
+            {
+                var ws = workbook.Worksheets.Create(salesmanGroup.Key ?? "Unknown");
+                // Add headers
+                var headers = new[] { "PCFNum", "CustomerNumber", "CustomerName", "StartDate", "EndDate", "PcfType", "BuyingGroup", "BTState", "ItemNum", "ItemDesc", "ItemStatusText", "PrivateLabelText", "Family_Code", "ApprovedPriceDecimal", "NewPrice", "SalesManager", "Salesman" };
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    ws.Range[1, i + 1].Text = headers[i];
+                    ws.Range[1, i + 1].CellStyle.Font.Bold = true;
+                }
+                // Add data
+                int row = 2;
+                foreach (var item in salesmanGroup)
+                {
+                    ws.Range[row, 1].Number = item.PCFNum;
+                    ws.Range[row, 2].Text = item.CustomerNumber;
+                    ws.Range[row, 3].Text = item.CustomerName;
+                    ws.Range[row, 4].DateTime = item.StartDate ?? DateTime.MinValue;
+                    ws.Range[row, 5].DateTime = item.EndDate ?? DateTime.MinValue;
+                    ws.Range[row, 6].Text = item.PcfType;
+                    ws.Range[row, 7].Text = item.BuyingGroup;
+                    ws.Range[row, 8].Text = item.BTState;
+                    ws.Range[row, 9].Text = item.ItemNum;
+                    ws.Range[row, 10].Text = item.ItemDesc;
+                    ws.Range[row, 11].Text = item.ItemStatusText;
+                    ws.Range[row, 12].Text = item.PrivateLabelText;
+                    ws.Range[row, 13].Text = item.Family_Code;
+                    ws.Range[row, 14].Number = (double)item.ApprovedPriceDecimal;
+                    ws.Range[row, 15].Number = (double)item.NewPrice;
+                    ws.Range[row, 16].Text = item.SalesManager;
+                    ws.Range[row, 17].Text = item.Salesman;
+                    row++;
+                }
+                // Set number format to display two decimal places
+                ws.Columns[13].NumberFormat = "0.00"; // Column 14 is index 13 (zero-based)
+                ws.Columns[14].NumberFormat = "0.00"; // Column 15 is index 14
+
+
+                ws.UsedRange.AutofitColumns();
+            }
+            workbook.Worksheets[0].Remove(); // Remove the first empty sheet
+
+            // Save to stream and trigger download
+            using var ms = new MemoryStream();
+            workbook.SaveAs(ms);
+            ms.Position = 0;
+            var fileName = $"PriceIncreases_{managerGroup.Key}_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            await DownloadFileAsync(fileName, ms.ToArray());
+        }
+    }
+
+    private async Task DownloadFileAsync(string fileName, byte[] fileBytes)
+    {
+        await JSRuntime.InvokeVoidAsync("BlazorDownloadFile.saveAsFile", fileName, Convert.ToBase64String(fileBytes));
+    }
+
+    private void ShowReviewDialog()
+    {
+        showReviewDialog = true;
+    }
+
+    private void CloseReviewDialog()
+    {
+        showReviewDialog = false;
+    }
+
+    private async Task GroupBySalesInfo()
+    {
+        // Clear previous groupings first if desired
+        await MyGrid.ClearGroupingAsync();
+
+        // Group by SalesManager, Salesman, then CustomerNumber
+
+
+        await MyGrid.GroupColumnAsync(nameof(PCFDetail.SalesManager));
+        await MyGrid.GroupColumnAsync(nameof(PCFDetail.Salesman));
+        await MyGrid.GroupColumnAsync(nameof(PCFDetail.CustomerNamePCFGroup));
+    }
+
+    private async Task ClearGrouping()
+    {
+ 
+        await MyGrid.ClearGroupingAsync();
+    }
+}
+
