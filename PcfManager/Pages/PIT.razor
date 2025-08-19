@@ -83,17 +83,31 @@ else
 
     @if (Mode == "PriceList")
     {
-       
+        <div>
+            <small style="
+                          color: #fff;
+                          background-color: #dc3545; /* red */
+                          display: inline-block;
+                          padding: 1px 4px;
+                          border-radius: 4px;
+                          line-height: 1;        /* tight line box */
+                          font-size: 0.7rem;    /* optional: slightly smaller text */
+                      ">
+                Price increases affect all Price Lists ---  Only checked Price Lists show on Grid
+            </small>
+
         <div class="d-flex flex-wrap align-items-center">
+            
             @foreach (var pl in priceLists)
             {
                 <div class="me-4 mb-2">
                     <SfCheckBox TValue="bool"
                                 Label="@pl.Name"
                                 Checked="@selectedPriceListIds.Contains(pl.Id)"
-                                CheckedChanged="@( (bool isChecked) => OnCheckboxChanged(pl.Id, isChecked) )" />
+                                CheckedChanged="@((bool isChecked) => OnCheckboxChanged(pl.Id, isChecked))"/>
                 </div>
             }
+        </div>
         </div>
     }
 
@@ -313,7 +327,7 @@ else
 
 
     private bool isLoading = true;
-    private string _mode = "PCF";
+    private string _mode = "PriceList";
     private string Mode
     {
         get => _mode;
@@ -383,7 +397,7 @@ else
     {
         try
         {
-            allFamilies = await DataService.GetAllFamilyCodesAsync();
+            allFamilies = await DataService.GetAllFamilyCodesForSaleableItemsAsync();
             // TODO: also load your initial pcfDetails or itemPrices here
         }
         catch (Exception ex)

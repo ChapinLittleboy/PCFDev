@@ -1283,7 +1283,23 @@ EXEC sp_executesql @query;
         var result = (await connection.QueryAsync<FamilyCode>(query)).ToList();
         return result;
     }
+    public async Task<List<FamilyCode>> GetAllFamilyCodesForSaleableItemsAsync()
+    {
 
+
+
+
+        using var connection = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
+
+        string query = @"SELECT DISTINCT UPPER(fc.family_code) as family_code, fc.description as family_name
+                         FROM famcode_mst fc join item_mst im on fc.family_code = im.family_code
+                         WHERE fc.family_code IS NOT NULL AND fc.family_code <> '' 
+                         and im.active_for_customer_portal = 1
+                         order by family_code";
+
+        var result = (await connection.QueryAsync<FamilyCode>(query)).ToList();
+        return result;
+    }
 
     public async Task<List<ItemPriceDto>> GetAllItemPricesOnPriceLists()
     {

@@ -111,6 +111,7 @@ builder.Logging.AddDebug();   // For debug output
 builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("DBNames"));
 builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<PCFPageState>();
+builder.Services.AddScoped<ITemplateProvider, FileSystemTemplateProvider>();
 
 var cs = builder.Configuration.GetConnectionString("CiiSQL10ro")
          ?? builder.Configuration["ConnectionStrings:CiiSQL10ro"]!;

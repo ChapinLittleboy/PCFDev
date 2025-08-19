@@ -76,7 +76,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="GeneratedPriceBooks\" />
     <Folder Include="OldPages\" />
+    <Folder Include="Templates\PriceBooks\" />
     <Folder Include="wwwroot\uploads\" />
   </ItemGroup>
 
@@ -103,6 +105,15 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Chapin.PriceBook\Chapin.PriceBook.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Templates\**\*">
+      <!-- No need to copy on every build -->
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <!-- Always include in publish output -->
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
   
 </Project>
