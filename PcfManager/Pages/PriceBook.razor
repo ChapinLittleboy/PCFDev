@@ -1,7 +1,13 @@
 ﻿@page "/pricebook"
-@inject HttpClient Http
+@using Chapin.PriceBook
+
 @inject IJSRuntime JS
 @inject NavigationManager Nav
+@inject IPriceBookGenerator Generator
+@inject IUserService UserSvc
+
+
+@attribute [Authorize]
 
 <h3 class="mb-3">Generate MSD Price Book</h3>
 
@@ -35,7 +41,7 @@
     {
         <div class="text-danger mt-3">@_error</div>
     }
-    <a class="btn btn-primary" href="/pricebook/generate">Generate & Download new</a>
+  
 </EditForm>
 
 @code {
@@ -64,23 +70,28 @@
         _busy = true;
         try
         {
-            // POST the request to your minimal endpoint
-            //var resp = await Http.PostAsJsonAsync("/pricebook/generate", _vm);
-            //resp.EnsureSuccessStatusCode();
-            var url = Nav.ToAbsoluteUri("/pricebook/generate");
-            var resp = await Http.PostAsJsonAsync(url, _vm);
 
-            // read the XLSX bytes
-            var bytes = await resp.Content.ReadAsByteArrayAsync();
 
-            // stream them to JS for a client-side download
+            var req = new PriceBookRequest(
+                TemplatePath: _vm.TemplatePath,
+                SourceKey: "sql",
+                ExcludeFuturePrices: true,
+                OutputFileName: $"MSD Price Book - {DateTime.Now:yyyyMMdd-HHmm}.xlsx");
+
+
+
+            var bytes = await Generator.GenerateAsync(req);
+            
+     
+            
             var fileName = "MSD Price Book (Generated).xlsx";
-             using var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
+            
+            using var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
             await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
+            _error = $"Error generating price book: {ex.Message}";
         }
         finally
         {

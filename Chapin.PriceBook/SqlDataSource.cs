@@ -18,27 +18,46 @@ public sealed class SqlDataSource : IDataSource
 
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = $@"
+WITH LatestPrice AS (
+    SELECT
+        p.Item,
+        p.unit_price1,
+        p.unit_price2,
+        p.unit_price3,
+        p.effect_date,
+        ROW_NUMBER() OVER (
+            PARTITION BY p.Item
+            ORDER BY p.effect_date DESC
+        ) AS rn
+    FROM dbo.ItemPrice_mst AS p
+    -- If you only want prices that are already effective, uncomment:
+    -- WHERE p.effect_date <= GETDATE()
+),
+S AS (
+    SELECT
+        pbs.combo_id,
+        pbs.display_label,
+        im.Item,
+        im.Uf_CustomerFriendlyDescription as [Description]
+    FROM dbo.Chap_PriceBookSections AS pbs
+    INNER JOIN dbo.item_mst AS im
+        ON im.Uf_PriceBookSection = pbs.combo_id
+)
 SELECT
     s.combo_id,
     s.display_label,
     s.Item,
-    COALESCE(NULLIF(LTRIM(RTRIM(im.Uf_CustomerFriendlyDescription)), ''), s.[Description]) AS [Description],
+    s.[Description],
     lp.unit_price1,
     lp.unit_price2,
     lp.unit_price3
-FROM dbo.Chap_PriceBookSections AS s
-LEFT JOIN dbo.Item_mst AS im
-    ON LTRIM(RTRIM(im.Item)) = LTRIM(RTRIM(s.Item))
-OUTER APPLY (
-    SELECT TOP (1)
-        p.unit_price1, p.unit_price2, p.unit_price3, p.effect_date
-    FROM dbo.ItemPrice_mst AS p
-    WHERE LTRIM(RTRIM(p.Item)) = LTRIM(RTRIM(s.Item))
-      {(excludeFuturePrices ? "AND p.effect_date <= GETDATE()" : "")}
-    ORDER BY p.effect_date DESC
-) AS lp
-ORDER BY s.combo_id, s.Item;
-";
+FROM S AS s
+LEFT JOIN LatestPrice AS lp
+    ON lp.Item = s.Item
+   AND lp.rn = 1
+ORDER BY
+    s.combo_id,
+    s.Item;";
 
         await using var r = await cmd.ExecuteReaderAsync(ct);
         while (await r.ReadAsync(ct))

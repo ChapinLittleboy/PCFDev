@@ -120,6 +120,12 @@ builder.Services.AddSingleton<IDataSource>(new SqlDataSource(cs));
 // Register generator
 builder.Services.AddSingleton<IPriceBookGenerator, PriceBookGenerator>();
 
+builder.Services.AddHttpClient("MyAPI", client =>
+{
+    client.BaseAddress = new Uri("https://api.ChapinPcfManager.com/");
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
+
 //builder.Services.AddAuthorization();
 
 
