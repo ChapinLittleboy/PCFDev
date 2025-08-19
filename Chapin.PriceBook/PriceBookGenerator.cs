@@ -24,6 +24,7 @@ public sealed class PriceBookGenerator : IPriceBookGenerator
             throw new InvalidOperationException($"Unknown source '{req.SourceKey}'");
 
         var rows = await src.GetRowsAsync(req.ExcludeFuturePrices, ct);
+        var all = rows;
 
         using var engine = new ExcelEngine();
         var app = engine.Excel;
@@ -31,131 +32,168 @@ public sealed class PriceBookGenerator : IPriceBookGenerator
 
         using var input = File.OpenRead(req.TemplatePath);
         var wb = app.Workbooks.Open(input, ExcelOpenType.Automatic);
+        int? lastSectionWritten = null;
 
-        foreach (var wsGroup in rows.GroupBy(r => r.WS).OrderBy(g => g.Key))
-        {
-            // Worksheet selection & name
-            var names = SplitDisplay(wsGroup.First().DisplayLabel);
-            var preferredSheetName = names.Sheet ?? $"WS{wsGroup.Key:00}";
 
-            var sheet = GetOrCreateWorksheet(wb, wsGroup.Key, preferredSheetName);
-            var (anchorSheet, anchorRow, anchorCol) = FindDefinedName(wb, $"ANCHOR_WS{wsGroup.Key:00}");
-            if (anchorSheet != null)
-                sheet = anchorSheet;
-            int startRow = anchorRow > 0 ? anchorRow : TemplateSectionRow;
-            int startCol = anchorCol > 0 ? anchorCol : 1;
+        foreach (var wsGroup in all.GroupBy(r => r.WS).OrderBy(g => g.Key))
+            {
+                // Preferred sheet name from first row's display_label
+                var names = SplitDisplay(wsGroup.First().DisplayLabel);
+                var preferredSheetName = names.Sheet ?? $"WS{wsGroup.Key:00}";
 
-            if (!string.Equals(sheet.Name, preferredSheetName, StringComparison.OrdinalIgnoreCase))
-                sheet.Name = MakeUniqueName(wb, preferredSheetName);
+                // Get or create worksheet for this WS##
+                var sheet = GetOrCreateWorksheet(wb, wsGroup.Key, preferredSheetName);
 
-            var header = BuildHeaderMap(sheet, HeaderRow);
-            ClearBelowTemplate(sheet, TemplateItemRow + 1);
+                // Find anchor if present; else default to A3
+                var (anchorSheet, anchorRow, anchorCol) = FindDefinedName(wb, $"ANCHOR_WS{wsGroup.Key:00}");
+                if (anchorSheet != null && anchorSheet != sheet)
+                    Console.WriteLine($"WARN: ANCHOR_WS{wsGroup.Key:00} found on different sheet; using that sheet.");
 
-            int current = startRow;
-            int? lastSectionWritten = null;
+                sheet = anchorSheet ?? sheet;
+                int startRow = anchorRow > 0 ? anchorRow : TemplateSectionRow;
+                int startCol = anchorCol > 0 ? anchorCol : 1;
+                // Where to write the header text (use your fixed column; if you
+                // anchor at C3, set startCol accordingly; leaving as startCol here)
+                int sectionCol = 3;
+                int subsectionCol = 2;
 
-            foreach (var secGroup in wsGroup.GroupBy(r => r.Sec).OrderBy(g => g.Key))
-                foreach (var ssGroup in secGroup.GroupBy(r => r.SS).OrderBy(g => g.Key))
-                    foreach (var accGroup in ssGroup.GroupBy(r => r.Acc).OrderBy(g => g.Key))
+
+                // Rename sheet to preferred name if needed
+                if (!string.Equals(sheet.Name, preferredSheetName, StringComparison.OrdinalIgnoreCase))
+                    sheet.Name = MakeUniqueName(wb, preferredSheetName);
+
+                // Build header map from row 2
+                var header = BuildHeaderMap(sheet, HeaderRow);
+                //LogResolvedColumns(header);
+
+                // Clear everything BELOW the template rows (row 6..end)
+                ClearBelowTemplate(sheet, TemplateItemRow + 1);
+
+                // We'll use the sample styles from the template rows
+                int current = startRow;
+
+                foreach (var secGroup in wsGroup.GroupBy(r => r.Sec).OrderBy(g => g.Key))
+                {
+                    foreach (var ssGroup in secGroup.GroupBy(r => r.SS).OrderBy(g => g.Key))
                     {
-                        var items = accGroup.ToList();
-                        if (items.Count == 0)
-                            continue;
-
-                        var parts = SplitDisplay(items[0].DisplayLabel);
-                        var sectionText = parts.Section ?? $"SEC {secGroup.Key:00}";
-                        var subsectionText = parts.Subsection ?? $"SS {ssGroup.Key:00}";
-                        if (accGroup.Key > 0)
-                            subsectionText = parts.Accessories ?? $"{subsectionText} – ACCESSORIES";
-
-                        bool isNewSection = lastSectionWritten != secGroup.Key;
-
-                        // If your template puts visible titles in Column C:
-                        int sectionCol = 3;
-                        int subsectionCol = 3;
-                        int firstDataRow;
-
-                        if (isNewSection)
+                        foreach (var accGroup in ssGroup.GroupBy(r => r.Acc).OrderBy(g => g.Key))
                         {
-                            if (current == TemplateSectionRow)
+                            var items = accGroup.ToList();
+                            if (items.Count == 0)
+                                continue;
+
+                            // Labels
+                            var parts = SplitDisplay(items[0].DisplayLabel);
+                            var sectionText = parts.Section ?? $"SEC {secGroup.Key:00}";
+                            var subsectionText = parts.Subsection ?? $"SS {ssGroup.Key:00}";
+                            if (accGroup.Key > 0)
+                                subsectionText = parts.Accessories ?? $"{subsectionText} – ACCESSORIES";
+
+                            bool isNewSection = lastSectionWritten != secGroup.Key;
+
+                            // Change this to the correct column index for your template
+                            // If section/subsection titles should be in column C, and C is col index 3:
+
+
+                            int firstDataRow;
+
+                            if (isNewSection)
                             {
-                                // Reuse template section & subsection rows (3 & 4)
-                                sheet[current, sectionCol].Text = sectionText;
-                                sheet[current + 1, subsectionCol].Text = subsectionText;
-                                firstDataRow = TemplateItemRow;
+                                // --- Write SECTION + SUBSECTION ---
+                                if (current == TemplateSectionRow)
+                                {
+                                    // Reuse template rows 3 & 4
+                                    sheet[current, sectionCol].Text = sectionText;            // Section row
+                                    sheet[current + 1, subsectionCol].Text = subsectionText;  // Subsection row
+                                    firstDataRow = TemplateItemRow;                           // Row 5
+                                }
+                                else
+                                {
+                                    // Insert 2 new rows for Section & Subsection
+                                    sheet.InsertRow(current, 2);
+                                    CopyRowStyle(sheet, TemplateSectionRow, current);         // Section style
+                                    CopyRowStyle(sheet, TemplateSubsectionRow, current + 1);  // Subsection style
+                                    EnsureSubsectionMerge(sheet, current + 1);
+
+                                    sheet[current, sectionCol].Text = sectionText;
+                                    sheet[current + 1, subsectionCol].Text = subsectionText;
+
+                                    firstDataRow = current + 2;
+                                }
+
+                                lastSectionWritten = secGroup.Key; // Mark section as written
                             }
                             else
                             {
-                                sheet.InsertRow(current, 2);
-                                CopyRowStyle(sheet, TemplateSectionRow, current);
-                                CopyRowStyle(sheet, TemplateSubsectionRow, current + 1);
-                                EnsureSubsectionMerge(sheet, current + 1); // B:C merge for subsection title
-
-                                sheet[current, sectionCol].Text = sectionText;
-                                sheet[current + 1, subsectionCol].Text = subsectionText;
-
-                                firstDataRow = current + 2;
+                                // --- Write ONLY SUBSECTION ---
+                                if (current == TemplateSectionRow)
+                                {
+                                    sheet[TemplateSubsectionRow, subsectionCol].Text = subsectionText;
+                                    firstDataRow = TemplateItemRow;
+                                }
+                                else
+                                {
+                                    sheet.InsertRow(current, 1);
+                                    CopyRowStyle(sheet, TemplateSubsectionRow, current);
+                                    EnsureSubsectionMerge(sheet, current);
+                                    sheet[current, subsectionCol].Text = subsectionText;
+                                    firstDataRow = current + 1;
+                                }
                             }
-                            lastSectionWritten = secGroup.Key;
-                        }
-                        else
-                        {
-                            // Only subsection
-                            if (current == TemplateSectionRow)
+
+                            // --- Ensure at least one item row ---
+                            if (firstDataRow != TemplateItemRow)
                             {
-                                sheet[TemplateSubsectionRow, subsectionCol].Text = subsectionText;
-                                firstDataRow = TemplateItemRow;
+                                sheet.InsertRow(firstDataRow);
+                                CopyRowStyle(sheet, TemplateItemRow, firstDataRow);
                             }
-                            else
+
+                            // Insert additional rows so total = items.Count
+                            if (items.Count > 1)
+                                sheet.InsertRow(firstDataRow + 1, items.Count - 1);
+
+                            // Copy style to all item rows
+                            for (int i = 0; i < items.Count; i++)
+                                CopyRowStyle(sheet, TemplateItemRow, firstDataRow + i);
+
+                            // Populate item rows
+                            for (int i = 0; i < items.Count; i++)
                             {
-                                sheet.InsertRow(current, 1);
-                                CopyRowStyle(sheet, TemplateSubsectionRow, current);
-                                EnsureSubsectionMerge(sheet, current);
+                                int r = firstDataRow + i;
+                                var row = items[i];
 
-                                sheet[current, subsectionCol].Text = subsectionText;
-                                firstDataRow = current + 1;
+                                Set(sheet, r, header, "ITEM", row.Item);
+                                Set(sheet, r, header, "DESCRIPTION", row.Description);
+                                Set(sheet, r, header, "LIST PRICE", row.ListPrice);
+                                Set(sheet, r, header, "PPD $4000", row.Ppd4000);
+                                Set(sheet, r, header, "PPD $12,500", row.Ppd12500);
                             }
+
+                            // Optional: apply currency formats for the three price columns
+                            ApplyCurrencyFormat(sheet, header, firstDataRow, firstDataRow + items.Count - 1,
+                                new[] { "LIST PRICE", "PPD $4000", "PPD $12,500" });
+
+                            // --- Spacer row between blocks ---
+                            int spacerRow = firstDataRow + items.Count; // first row AFTER the items
+                            sheet.InsertRow(spacerRow + 1);             // insert exactly one spacer row
+                            int sr = spacerRow + 1;
+
+                            // match the item row height so spacing looks consistent
+                            sheet.Range[sr, 1].RowHeight = sheet.Range[TemplateItemRow, 1].RowHeight;
+
+                            // wipe borders/fills/fonts/etc. and any accidental values
+                            var rng = sheet.Range[sr, 1, sr, sheet.UsedRange.LastColumn];
+                            rng.Clear(ExcelClearOptions.ClearFormat | ExcelClearOptions.ClearContent);
+
+                            // advance pointer to the first row for the NEXT header
+                            current = sr + 0;
                         }
 
-                        // Ensure at least one item row, then insert extras
-                        if (firstDataRow != TemplateItemRow)
-                        {
-                            sheet.InsertRow(firstDataRow);
-                            CopyRowStyle(sheet, TemplateItemRow, firstDataRow);
-                        }
-                        if (items.Count > 1)
-                            sheet.InsertRow(firstDataRow + 1, items.Count - 1);
 
-                        // Copy item style & write values
-                        for (int i = 0; i < items.Count; i++)
-                            CopyRowStyle(sheet, TemplateItemRow, firstDataRow + i);
-
-                        for (int i = 0; i < items.Count; i++)
-                        {
-                            int r = firstDataRow + i;
-                            var row = items[i];
-
-                            Set(sheet, r, header, "ITEM", row.Item);
-                            Set(sheet, r, header, "DESCRIPTION", row.Description);
-                            Set(sheet, r, header, "LIST PRICE", row.ListPrice);
-                            Set(sheet, r, header, "PPD $4000", row.Ppd4000);
-                            Set(sheet, r, header, "PPD $12,500", row.Ppd12500);
-                        }
-
-                        // Currency formats for this block
-                        ApplyCurrencyFormat(sheet, header, firstDataRow, firstDataRow + items.Count - 1,
-                            new[] { "LIST PRICE", "PPD $4000", "PPD $12,500" });
-
-                        // One borderless spacer row
-                        int spacerRow = firstDataRow + items.Count;
-                        sheet.InsertRow(spacerRow + 1);
-                        int sr = spacerRow + 1;
-                        sheet.Range[sr, 1].RowHeight = sheet.Range[TemplateItemRow, 1].RowHeight;
-                        var rng = sheet.Range[sr, 1, sr, sheet.UsedRange.LastColumn];
-                        rng.Clear(ExcelClearOptions.ClearFormat | ExcelClearOptions.ClearContent);
-                        current = sr + 1;
                     }
-        }
+                }
+
+            }
 
         using var ms = new MemoryStream();
         wb.SaveAs(ms);
