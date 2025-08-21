@@ -13,6 +13,8 @@ public class PCFItemDTO
     public int AnnEstDollars { get; set; }
     public decimal LYPrice { get; set; }
     public int LYUnits { get; set; }
+
+
     public int ID { get; set; }
 
     public double PP1Price { get; set; }
@@ -28,6 +30,46 @@ public class PCFItemDTO
     public string? UserName { get; set; }  // set and used only in the update query
 
     public string? ItemStatus { get; set; }
+
+    public decimal CurrentFYSales { get; set; }
+    public int CurrentFYUnits { get; set; }
+    public decimal Prior1FYSales { get; set; }
+    public int Prior1FYUnits { get; set; }
+    public decimal Prior2FYSales { get; set; }
+    public int Prior2FYUnits { get; set; }
+    public string CurrentFYName { get; private set; }
+    public string Prior1FYName { get; private set; }
+    public string Prior2FYName { get; private set; }
+
+    public double StandardCost { get; set; }  // im.cur_u_cost
+    public double Margin => ProposedPrice > 0
+        ? (ProposedPrice - StandardCost) / ProposedPrice
+        : 0;
+
+
+    // Constructor
+    public PCFItemDTO()
+    {
+        SetFiscalYearNames();
+    }
+
+    private void SetFiscalYearNames()
+    {
+        DateTime today = DateTime.Today;
+
+        // Fiscal year ends on August 31
+        int fiscalYear = (today.Month > 8) ? today.Year + 1 : today.Year;
+
+        CurrentFYName = $"FY{fiscalYear}";
+        Prior1FYName = $"FY{fiscalYear - 1}";
+        Prior2FYName = $"FY{fiscalYear - 2}";
+    }
+
+
+
+
+
+
 }
 
 

@@ -113,9 +113,13 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<PCFPageState>();
 builder.Services.AddScoped<ITemplateProvider, FileSystemTemplateProvider>();
 
-var cs = builder.Configuration.GetConnectionString("CiiSQL10ro")
-         ?? builder.Configuration["ConnectionStrings:CiiSQL10ro"]!;
-builder.Services.AddSingleton<IDataSource>(new SqlDataSource(cs));
+var csro = builder.Configuration.GetConnectionString("CiiSQL10ro")
+           ?? builder.Configuration["ConnectionStrings:CiiSQL10ro"]!;
+var csrw = builder.Configuration.GetConnectionString("CiiSQL10rw")
+           ?? builder.Configuration["ConnectionStrings:CiiSQL10rw"]!;
+builder.Services.AddSingleton<IDataSource>(new SqlDataSource(csro));
+builder.Services.AddSingleton<IPriceBookDraftService>(sp =>
+    new PriceBookDraftService(csrw));
 // If you add another source: builder.Services.AddSingleton<IDataSource>(new AltDataSource(...));
 
 // Register generator

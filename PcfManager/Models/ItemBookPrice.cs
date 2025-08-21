@@ -15,7 +15,7 @@ public class ItemBookPrice
     public string? Family_Code_Description { get; set; }
 
     public double BookPrice => PP1Price;
-
+    public double StandardCost { get; set; }  // im.cur_u_cost
     public string? ItemStatus { get; set; }
 
 }

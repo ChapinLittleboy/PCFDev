@@ -10,7 +10,16 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <NoWarn>1701;1702;10012;RZ10012</NoWarn>
+    <NoWarn>
+      1701;1702;10012;RZ10012;    
+      CS1998; <!-- async method lacks 'await' -->
+      CS0618; <!-- obsolete API (ColumnType.Number, etc.) -->
+      CS4014; <!-- un-awaited async call -->
+      CS0414; <!-- field is assigned but never used -->
+      CS0169; <!-- field is never used -->
+      CS0105; <!-- duplicate using directive -->
+      CS8765; <!-- nullability of parameter mismatch -->
+    </NoWarn>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

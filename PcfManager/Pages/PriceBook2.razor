@@ -1,0 +1,326 @@
+﻿@page "/pricebook2"
+@using System.Data
+@using Microsoft.Data.SqlClient
+@using Chapin.PriceBook
+@using Microsoft.AspNetCore.Components.Forms
+@inject IConfiguration Config
+@inject IWebHostEnvironment Env
+
+<h2>Price Book (v2)</h2>
+
+<InputRadioGroup @bind-Value="Mode" class="pb-3 d-block">
+    <div class="form-check">
+        <InputRadio class="form-check-input" Value="@("DraftLive")" />
+        <label class="form-check-label">Draft Live Preview (uses DraftId + TemplateId)</label>
+    </div>
+    <div class="form-check">
+        <InputRadio class="form-check-input" Value="@("Version")" />
+        <label class="form-check-label">Frozen Version (uses VersionId)</label>
+    </div>
+</InputRadioGroup>
+
+@if (Mode == "DraftLive")
+{
+    <div class="card p-3 mb-3">
+        <div class="row g-2">
+            <div class="col-sm-3">
+                <label class="form-label">Draft Id</label>
+                <input class="form-control" type="number" @bind="DraftId" />
+            </div>
+            <div class="col-sm-4">
+                <label class="form-label">Template</label>
+                <select class="form-select" @bind="SelectedTemplateId">
+                    <option value="">-- select template --</option>
+                    @foreach (var t in Templates)
+                    {
+                        <option value="@t.TemplateId">@t.TemplateName (@t.ExcelFileName)</option>
+                    }
+                </select>
+            </div>
+            <div class="col-sm-3 form-check" style="padding-top: 2rem;">
+                <input class="form-check-input" type="checkbox" id="forceCurrent" @bind="ForceCurrentOnly" />
+                <label class="form-check-label" for="forceCurrent">Force Current (exclude future)</label>
+            </div>
+            <div class="col-sm-2" style="padding-top: 2rem;">
+                <button class="btn btn-primary w-100" @onclick="GenerateFromDraftLiveAsync" disabled="@IsBusy">
+                    @if (IsBusy) { <span>Working…</span> } else { <span>Generate</span> }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card p-3 mb-3">
+        <div class="row g-2">
+            <div class="col-sm-3">
+                <label class="form-label">Version Id</label>
+                <input class="form-control" type="number" @bind="VersionId" />
+            </div>
+            <div class="col-sm-4">
+                <label class="form-label">Template (auto from Version)</label>
+                <input class="form-control" value="@ResolvedVersionTemplateName" disabled />
+            </div>
+            <div class="col-sm-3" style="padding-top: 2rem;">
+                <button class="btn btn-primary w-100" @onclick="GenerateFromVersionAsync" disabled="@IsBusy">
+                    @if (IsBusy) { <span>Working…</span> } else { <span>Generate</span> }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(LastOutputRelativePath))
+{
+    <div class="alert alert-success">
+        <div><strong>File ready:</strong> <a href="@LastOutputRelativePath" download>@System.IO.Path.GetFileName(LastOutputRelativePath)</a></div>
+        <div class="small text-muted">@LastMessage</div>
+    </div>
+}
+@if (!string.IsNullOrWhiteSpace(ErrorMessage))
+{
+    <div class="alert alert-danger">
+        @ErrorMessage
+    </div>
+}
+
+@code {
+    // ----- UI State -----
+    private string Mode { get; set; } = "DraftLive"; // or "Version"
+    private long DraftId { get; set; }
+    private int? SelectedTemplateId { get; set; }
+    private bool ForceCurrentOnly { get; set; } = false;
+
+    private long VersionId { get; set; }
+    private string? ResolvedVersionTemplateName { get; set; }
+
+    private bool IsBusy { get; set; }
+    private string? LastOutputRelativePath { get; set; }
+    private string? LastMessage { get; set; }
+    private string? ErrorMessage { get; set; }
+    
+
+    // ----- Templates dropdown -----
+    private readonly List<TemplateRow> Templates = new();
+
+    private sealed record TemplateRow(int TemplateId, string TemplateName, string ExcelFileName);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await LoadTemplatesAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Failed to load templates: {ex.Message}";
+        }
+    }
+
+    private async Task LoadTemplatesAsync()
+    {
+        Templates.Clear();
+
+        var connStr = Config.GetConnectionString("Default")
+            ?? throw new InvalidOperationException("Missing connection string 'Default'.");
+
+        const string sql = @"
+SELECT TemplateId, TemplateName, ExcelFileName
+FROM dbo.Chap_PriceBookTemplate
+ORDER BY TemplateName;";
+
+        await using var conn = new SqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new SqlCommand(sql, conn);
+        await using var r = await cmd.ExecuteReaderAsync();
+        while (await r.ReadAsync())
+        {
+            Templates.Add(new TemplateRow(
+                r.GetInt32(0),
+                r.GetString(1),
+                r.GetString(2)
+            ));
+        }
+    }
+
+    // ----- Generate: Draft Live -----
+    private async Task GenerateFromDraftLiveAsync()
+    {
+        ResetOutput();
+        if (DraftId <= 0) { ErrorMessage = "Please provide a valid Draft Id."; return; }
+        if (SelectedTemplateId is null) { ErrorMessage = "Please select a template."; return; }
+
+        IsBusy = true;
+        try
+        {
+            var connStr = Config.GetConnectionString("Default")
+                ?? throw new InvalidOperationException("Missing connection string 'Default'.");
+
+            // Resolve Excel template full path
+            var (templatePath, templateName) = await ResolveTemplatePathByTemplateIdAsync(connStr, SelectedTemplateId.Value);
+
+            // Build sources
+            var legacy = new SqlDataSource(connStr); // existing legacy source
+            var live   = new DraftLiveDataSource(connStr, DraftId, SelectedTemplateId.Value); // NEW
+
+            // Generator
+            var gen = new PriceBookGenerator(new IDataSource[] { legacy, live });
+
+            var outputFileName = $"PriceBook_Draft_{DraftId}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            var request = new PriceBookRequest(
+                TemplatePath: templatePath,
+                SourceKey: live.Key,
+                ExcludeFuturePrices: ForceCurrentOnly, // true => force current-only
+                OutputFileName: outputFileName
+            );
+
+            var bytes = await gen.GenerateAsync(request);
+            var relPath = await SaveToWwwrootAsync(bytes, outputFileName);
+
+            LastOutputRelativePath = relPath;
+            LastMessage = $"Mode=DraftLive, Template='{templateName}', ExcludeFuturePrices={ForceCurrentOnly}";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    // ----- Generate: Frozen Version -----
+    private async Task GenerateFromVersionAsync()
+    {
+        ResetOutput();
+        if (VersionId <= 0) { ErrorMessage = "Please provide a valid Version Id."; return; }
+
+        IsBusy = true;
+        try
+        {
+            var connStr = Config.GetConnectionString("Default")
+                ?? throw new InvalidOperationException("Missing connection string 'Default'.");
+
+            // Resolve Excel template from Version (joins to Template)
+            var (templatePath, templateName) = await ResolveTemplatePathByVersionIdAsync(connStr, VersionId);
+
+            // Build sources
+            var legacy = new SqlDataSource(connStr);
+            var snap   = new DraftVersionDataSource(connStr, VersionId); // NEW
+
+            // Generator
+            var gen = new PriceBookGenerator(new IDataSource[] { legacy, snap });
+
+            var outputFileName = $"PriceBook_Version_{VersionId}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            var request = new PriceBookRequest(
+                TemplatePath: templatePath,
+                SourceKey: snap.Key,
+                ExcludeFuturePrices: false, // not relevant for a frozen version
+                OutputFileName: outputFileName
+            );
+
+            var bytes = await gen.GenerateAsync(request);
+            var relPath = await SaveToWwwrootAsync(bytes, outputFileName);
+
+            LastOutputRelativePath = relPath;
+            LastMessage = $"Mode=Version, Template='{templateName}'";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    // ----- Helpers -----
+
+    private void ResetOutput()
+    {
+        ErrorMessage = null;
+        LastOutputRelativePath = null;
+        LastMessage = null;
+    }
+
+    private async Task<(string FullPath, string TemplateName)> ResolveTemplatePathByTemplateIdAsync(string connStr, int templateId)
+    {
+        const string sql = @"SELECT TemplateName, ExcelFileName FROM dbo.Chap_PriceBookTemplate WHERE TemplateId = @Id;";
+        await using var conn = new SqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@Id", templateId);
+        await using var r = await cmd.ExecuteReaderAsync();
+        if (!await r.ReadAsync())
+            throw new InvalidOperationException($"TemplateId {templateId} not found.");
+        var templateName = r.GetString(0);
+        var excelName = r.GetString(1);
+
+        var templatesRoot = Config["PriceBook:TemplatesRoot"];
+        if (string.IsNullOrWhiteSpace(templatesRoot))
+            throw new InvalidOperationException("Missing configuration 'PriceBook:TemplatesRoot' (folder path).");
+
+        var fullPath = Path.Combine(templatesRoot, excelName);
+        if (!System.IO.File.Exists(fullPath))
+            throw new FileNotFoundException($"Excel template not found at '{fullPath}'.");
+        return (fullPath, templateName);
+    }
+
+    private async Task<(string FullPath, string TemplateName)> ResolveTemplatePathByVersionIdAsync(string connStr, long versionId)
+    {
+        // Assumes Chap_PriceBookVersion has TemplateId FK.
+        const string sql = @"
+SELECT t.TemplateName, t.ExcelFileName
+FROM dbo.Chap_PriceBookVersion v
+JOIN dbo.Chap_PriceBookTemplate t ON t.TemplateId = v.TemplateId
+WHERE v.VersionId = @Id;";
+
+        await using var conn = new SqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@Id", versionId);
+        await using var r = await cmd.ExecuteReaderAsync();
+        if (!await r.ReadAsync())
+            throw new InvalidOperationException($"VersionId {versionId} not found or missing TemplateId.");
+
+        var templateName = r.GetString(0);
+        var excelName = r.GetString(1);
+
+        var templatesRoot = Config["PriceBook:TemplatesRoot"];
+        if (string.IsNullOrWhiteSpace(templatesRoot))
+            throw new InvalidOperationException("Missing configuration 'PriceBook:TemplatesRoot' (folder path).");
+
+        var fullPath = Path.Combine(templatesRoot, excelName);
+        if (!System.IO.File.Exists(fullPath))
+            throw new FileNotFoundException($"Excel template not found at '{fullPath}'.");
+        ResolvedVersionTemplateName = templateName;
+        return (fullPath, templateName);
+    }
+
+    private async Task<string> SaveToWwwrootAsync(byte[] bytes, string fileName)
+    {
+        var outDir = Path.Combine(Env.WebRootPath ?? "wwwroot", "pricebooks");
+        Directory.CreateDirectory(outDir);
+
+        // Ensure unique filename
+        var safeName = fileName;
+        var fullPath = Path.Combine(outDir, safeName);
+        int counter = 1;
+        while (System.IO.File.Exists(fullPath))
+        {
+            var name = Path.GetFileNameWithoutExtension(fileName);
+            var ext = Path.GetExtension(fileName);
+            safeName = $"{name}_{counter}{ext}";
+            fullPath = Path.Combine(outDir, safeName);
+            counter++;
+        }
+
+        await System.IO.File.WriteAllBytesAsync(fullPath, bytes);
+
+        // Return a relative URL (served by Static Files middleware)
+        var rel = $"/pricebooks/{Uri.EscapeDataString(safeName)}";
+        return rel;
+    }
+}

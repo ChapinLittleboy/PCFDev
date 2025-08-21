@@ -486,6 +486,7 @@ SELECT
     item_mst.item, 
     item_mst.description, 
     item_mst.family_code,
+    item_mst.cur_u_cost as StandardCost,
     famcode_mst.description as Family_Code_Description,
     latest_price.effect_date AS EffectiveDate, 
     ISNULL(latest_price.unit_price1, 0.0) AS ListPrice,

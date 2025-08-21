@@ -19,7 +19,10 @@ public sealed record PriceBookRow(
     string DisplayLabel,   // "9_1_2025 Price Book > SPRAYERS > MULTI-USE POLY SPRAYERS"
     string Item,           // Item code
     string Description,    // From im.Uf_CustomerFriendlyDescription (fallback to s.Description)
-    decimal? ListPrice,    // unit_price1
-    decimal? Ppd4000,      // unit_price2
-    decimal? Ppd12500      // unit_price3
+    decimal? ListPrice,    // unit_price1 List Price
+    decimal? PP1,      // unit_price2   Prepaid 4k
+    decimal? PP2 ,     // unit_price3   Prepaid 12.5k
+    decimal? BM1,     // unit_price4 
+    decimal? BM2 ,     // unit_price5
+    decimal? FOB      // unit_price6
 );

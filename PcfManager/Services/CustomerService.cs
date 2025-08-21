@@ -1,6 +1,8 @@
-﻿using PcfManager.Data;
+﻿using Dapper;
+using Microsoft.Data.SqlClient;
+using PcfManager.Data;
 using PcfManager.Models;
-using Dapper;
+using System.Data;
 
 namespace PcfManager.Services;
 
@@ -199,7 +201,134 @@ WHERE
         }
     }
 
+    public async Task<IList<CustomerItemFiscalSummary>> GetCustomerItemFiscalSummaryAsync(
+        string custNum, string? item = null, CancellationToken ct = default)
+    {
+    
 
+        const string sql = @"
+;WITH FY AS (
+    SELECT 
+        fc.FiscalYear       AS FYCurrent,
+        fc.FiscalYearStart  AS FYCurrentStart,
+        fc.FiscalYearEnd    AS FYCurrentEnd
+    FROM Tempwork.dbo.FiscalCalendarVw fc
+    WHERE fc.[Date] = CAST(GETDATE() AS date)      -- single row
+),
+Bounds AS (
+    SELECT
+        f.FYCurrent,
+        MIN(CASE WHEN v.FiscalYear = f.FYCurrent - 1 THEN v.FiscalYearStart END) AS FYPriorStart,
+        MAX(CASE WHEN v.FiscalYear = f.FYCurrent - 1 THEN v.FiscalYearEnd   END) AS FYPriorEnd,
+        MIN(CASE WHEN v.FiscalYear = f.FYCurrent - 2 THEN v.FiscalYearStart END) AS FYPrior2Start,
+        MAX(CASE WHEN v.FiscalYear = f.FYCurrent - 2 THEN v.FiscalYearEnd   END) AS FYPrior2End,
+        MAX(CASE WHEN v.FiscalYear = f.FYCurrent     THEN v.FiscalYearEnd   END) AS FYCurrentEnd
+    FROM Tempwork.dbo.FiscalCalendarVw v
+    CROSS JOIN FY f
+    GROUP BY f.FYCurrent
+),
+InvoiceData AS (
+    -- Bat_App
+    SELECT 
+        ii.item                                AS Item,
+        im.Description                         AS ItemDescription,
+        cal.FiscalYear                         AS FiscalYear,
+        CAST(ii.qty_invoiced * (ii.price * ((100.0 - ISNULL(ih.disc, 0.0)) / 100.0)) AS decimal(18,2)) AS RevAmount,
+        CAST(ii.qty_invoiced AS decimal(18,2)) AS QtyInvoiced
+    FROM Bat_App.dbo.inv_item_mst ii WITH (NOLOCK)
+    INNER JOIN Bat_App.dbo.inv_hdr_mst ih WITH (NOLOCK)
+        ON ii.inv_num = ih.inv_num AND ii.inv_seq = ih.inv_seq
+    LEFT JOIN Bat_App.dbo.item_mst im WITH (NOLOCK)
+        ON ii.item = im.item
+    INNER JOIN Tempwork.dbo.FiscalCalendarVw cal
+        ON cal.[Date] = CAST(ih.inv_date AS date)
+    CROSS JOIN Bounds b
+    WHERE ih.cust_num = @CustNum
+      AND CAST(ih.inv_date AS date) BETWEEN b.FYPrior2Start AND b.FYCurrentEnd
+      AND (@Item IS NULL OR ii.item = @Item)
+
+    UNION ALL
+
+    -- Kent_App
+    SELECT 
+        ii.item                                AS Item,
+        im.Description                         AS ItemDescription,
+        cal.FiscalYear                         AS FiscalYear,
+        CAST(ii.qty_invoiced * (ii.price * ((100.0 - ISNULL(ih.disc, 0.0)) / 100.0)) AS decimal(18,2)) AS RevAmount,
+        CAST(ii.qty_invoiced AS decimal(18,2)) AS QtyInvoiced
+    FROM Kent_App.dbo.inv_item_mst ii WITH (NOLOCK)
+    INNER JOIN Kent_App.dbo.inv_hdr_mst ih WITH (NOLOCK)
+        ON ii.inv_num = ih.inv_num AND ii.inv_seq = ih.inv_seq
+    LEFT JOIN Kent_App.dbo.item_mst im WITH (NOLOCK)
+        ON ii.item = im.item
+    INNER JOIN Tempwork.dbo.FiscalCalendarVw cal
+        ON cal.[Date] = CAST(ih.inv_date AS date)
+    CROSS JOIN Bounds b
+    WHERE ih.cust_num = @CustNum
+      AND CAST(ih.inv_date AS date) BETWEEN b.FYPrior2Start AND b.FYCurrentEnd
+      AND (@Item IS NULL OR ii.item = @Item)
+),
+Agg AS (
+    SELECT 
+        d.Item,
+        MAX(d.ItemDescription) AS ItemDescription,
+        SUM(CASE WHEN d.FiscalYear = b.FYCurrent     THEN d.RevAmount   ELSE 0 END) AS FY_Current_Rev,
+        SUM(CASE WHEN d.FiscalYear = b.FYCurrent - 1 THEN d.RevAmount   ELSE 0 END) AS FY_Prior_Rev,
+        SUM(CASE WHEN d.FiscalYear = b.FYCurrent - 2 THEN d.RevAmount   ELSE 0 END) AS FY_Prior2_Rev,
+
+        SUM(CASE WHEN d.FiscalYear = b.FYCurrent     THEN d.QtyInvoiced ELSE 0 END) AS FY_Current_Qty,
+        SUM(CASE WHEN d.FiscalYear = b.FYCurrent - 1 THEN d.QtyInvoiced ELSE 0 END) AS FY_Prior_Qty,
+        SUM(CASE WHEN d.FiscalYear = b.FYCurrent - 2 THEN d.QtyInvoiced ELSE 0 END) AS FY_Prior2_Qty
+    FROM InvoiceData d
+    CROSS JOIN Bounds b
+    GROUP BY d.Item
+)
+SELECT 
+    a.Item,
+    a.ItemDescription,
+    b.FYCurrent AS CurrentFiscalYear,
+    a.FY_Current_Rev,
+    a.FY_Prior_Rev,
+    a.FY_Prior2_Rev,
+    a.FY_Current_Qty,
+    a.FY_Prior_Qty,
+    a.FY_Prior2_Qty
+FROM Agg a
+CROSS JOIN Bounds b
+ORDER BY a.Item;
+";
+
+        var results = new List<CustomerItemFiscalSummary>();
+
+        using var conn = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
+        if (conn == null)
+            throw new InvalidOperationException("Database connection could not be created.");
+
+        var parameters = new
+        {
+            CustNum = custNum,
+            Item = item // Dapper will pass DBNull for null automatically
+        };
+
+        // Use CommandDefinition so we can keep timeout, command type, and support cancellation
+        var command = new CommandDefinition(
+            commandText: sql,
+            parameters: parameters,
+            transaction: null,
+            commandTimeout: 180,
+            commandType: CommandType.Text,
+            // Buffered is the default; switch to CommandFlags.None if you need unbuffered streaming
+            flags: CommandFlags.Buffered,
+            cancellationToken: ct
+        );
+
+        // Dapper maps columns -> properties case-insensitively by name
+        var rows = await conn.QueryAsync<CustomerItemFiscalSummary>(command).ConfigureAwait(false);
+
+        // If you specifically want a List<T> (not IEnumerable<T>)
+        results = rows.AsList();
+        return results;
+    }
 
 
 }

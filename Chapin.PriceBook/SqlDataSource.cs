@@ -21,9 +21,12 @@ public sealed class SqlDataSource : IDataSource
 WITH LatestPrice AS (
     SELECT
         p.Item,
-        p.unit_price1,
-        p.unit_price2,
-        p.unit_price3,
+        p.unit_price1, --List
+        p.unit_price2, -- PP1
+        p.unit_price3, -- PP2
+        p.unit_price4,  --BM1
+        p.unit_price5,   --BM2
+        p.unit_price6,   --FOB
         p.effect_date,
         ROW_NUMBER() OVER (
             PARTITION BY p.Item
@@ -48,9 +51,12 @@ SELECT
     s.display_label,
     s.Item,
     s.[Description],
-    lp.unit_price1,
-    lp.unit_price2,
-    lp.unit_price3
+    lp.unit_price1, --List Price
+    lp.unit_price2,  --PP1
+       lp.unit_price3,  --PP2
+       lp.unit_price4,  --BM1
+        lp.unit_price5,   --BM2
+       lp.unit_price6,   --FOB
 FROM S AS s
 LEFT JOIN LatestPrice AS lp
     ON lp.Item = s.Item
@@ -70,8 +76,11 @@ ORDER BY
             decimal? up1 = r.IsDBNull(4) ? null : r.GetDecimal(4);
             decimal? up2 = r.IsDBNull(5) ? null : r.GetDecimal(5);
             decimal? up3 = r.IsDBNull(6) ? null : r.GetDecimal(6);
+            decimal? up4 = r.IsDBNull(7) ? null : r.GetDecimal(7);  // currently unused
+            decimal? up5 = r.IsDBNull(8) ? null : r.GetDecimal(8);  // currently unused
+            decimal? up6 = r.IsDBNull(9) ? null : r.GetDecimal(9);  // currently unused
 
-            list.Add(new PriceBookRow(combo, ws, sec, ss, acc, display, item, desc, up1, up2, up3));
+            list.Add(new PriceBookRow(combo, ws, sec, ss, acc, display, item, desc, up1, up2, up3, up4, up5, up6));
         }
 
         return list;

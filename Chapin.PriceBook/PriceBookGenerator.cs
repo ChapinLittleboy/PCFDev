@@ -165,8 +165,8 @@ public sealed class PriceBookGenerator : IPriceBookGenerator
                                 Set(sheet, r, header, "ITEM", row.Item);
                                 Set(sheet, r, header, "DESCRIPTION", row.Description);
                                 Set(sheet, r, header, "LIST PRICE", row.ListPrice);
-                                Set(sheet, r, header, "PPD $4000", row.Ppd4000);
-                                Set(sheet, r, header, "PPD $12,500", row.Ppd12500);
+                                Set(sheet, r, header, "PPD $4000", row.PP1);
+                                Set(sheet, r, header, "PPD $12,500", row.PP2);
                             }
 
                             // Optional: apply currency formats for the three price columns
@@ -271,9 +271,9 @@ public sealed class PriceBookGenerator : IPriceBookGenerator
             case "LIST PRICE":
                 return new[] { "LIST PRICE", "LISTPRICE", "LIST\nPRICE", "PRICE" };
             case "PPD $4000":
-                return new[] { "PPD $4000", "PPD4000", "PPD 4000", "PPD$4000" };
+                return new[] { "PPD $4000", "PP1", "PPD 4000", "PPD$4000" };
             case "PPD $12,500":
-                return new[] { "PPD $12,500", "PPD12500", "PPD 12500", "PPD$12500", "PPD $12 500" };
+                return new[] { "PPD $12,500", "PP2", "PPD 12500", "PPD$12500", "PPD $12 500" };
             default:
                 return new[] { logicalName };
         }

@@ -11,6 +11,8 @@
 @inject DataService DataService
 @inject ILogger<PriceIncreaseTool> Logger
 @inject IJSRuntime JSRuntime
+@inject PcfManager.Services.IPriceBookDraftService DraftService
+@inject NavigationManager Nav
 
 <PageTitle>Price Increase Rpt</PageTitle>
 
@@ -325,6 +327,7 @@ else
     private List<ItemPriceDto> itempricelists = new();
     private List<string> selectedPriceListIds { get; set; } = new();
 
+    private bool UseLatestInclFuture { get; set; } = false; // toggle in your UI
 
     private bool isLoading = true;
     private string _mode = "PriceList";
@@ -378,7 +381,23 @@ else
     new PriceList { Id = "FOB", Name = "FOB Price List" }
   };
 
+    private async Task SaveDraftAndGoAsync()
+    {
+        // 1) Make sure your ApplyIncreases already ran and filled the New* fields.
+        // 2) Get the filtered/visible records from the grid:
+        var recordsObj = await MyPriceListGrid.GetFilteredRecordsAsync();
+        var rows = (IEnumerable<PcfManager.Services.ItemPricePbDto>)recordsObj;
 
+        // 3) Save via TVP
+        long draftId = await DraftService.SaveDraftAsync(
+            mode: "PriceList",
+            useLatestInclFuture: UseLatestInclFuture,
+            createdBy: "saPB",
+            rows: rows);
+
+        // Optional: navigate to a Draft details / choose-template page:
+        Nav.NavigateTo($"/pricebook/draft/{draftId}");
+    }
     private void OnCheckboxChanged(string id, bool isChecked)
     {
         if (isChecked)

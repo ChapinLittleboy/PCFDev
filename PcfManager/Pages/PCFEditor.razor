@@ -496,13 +496,29 @@ else
                                         </Template>
                                     </GridColumn>
                                     <GridColumn Field="ProposedPrice" HeaderText="Accepted Price" Width="150" TextAlign="TextAlign.Right" Format="N2" EditType="EditType.NumericEdit"></GridColumn>
-
+                                <GridColumn Field="Margin" HeaderText="Margin" Width="120"
+                                            TextAlign="TextAlign.Right" Format="P2" AllowEditing="false">
+                                </GridColumn>
                                     <GridColumn Field="PP1Price" HeaderText="$4k Price (PP1)" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
                                     <GridColumn HeaderText="Pct to 4k" Width="75" TextAlign="TextAlign.Right" Template="@PercentageTemplate" />
                                     <GridColumn Field="PP2Price" HeaderText="$12.5k Price (PP2)" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false" ></GridColumn>
                                     <GridColumn Field="FOBPrice" HeaderText="FOB Price" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false" ></GridColumn>
                                     <GridColumn Field="Family_Code" HeaderText="Family Code" Width="150" TextAlign="TextAlign.Left" AllowEditing="false"></GridColumn>
 
+                                <GridColumn Field="CurrentFYSales" HeaderText="@($"{CurrentFYHeader} Sales")" Width="150"
+                                            TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                <GridColumn Field="CurrentFYUnits" HeaderText="@($"{CurrentFYHeader} Units")" Width="150"
+                                            TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
+
+                                <GridColumn Field="Prior1FYSales" HeaderText="@($"{Prior1FYHeader} Sales")" Width="150"
+                                            TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                <GridColumn Field="Prior1FYUnits" HeaderText="@($"{Prior1FYHeader} Units")" Width="150"
+                                            TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
+
+                                <GridColumn Field="Prior2FYSales" HeaderText="@($"{Prior2FYHeader} Sales")" Width="150"
+                                            TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                <GridColumn Field="Prior2FYUnits" HeaderText="@($"{Prior2FYHeader} Units")" Width="150"
+                                            TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
                                 </GridColumns>
                             </SfGrid>
                         </div>
@@ -639,7 +655,9 @@ else
 
     private string EmailQuestion = "Would you like to email a PDF of the Pricing Control Form to the Sales Manager and Sales Rep?";
 
-
+    private string CurrentFYHeader => phDTO?.PCFLines.FirstOrDefault()?.CurrentFYName ?? "Current FY";
+    private string Prior1FYHeader => phDTO?.PCFLines.FirstOrDefault()?.Prior1FYName ?? "Prior FY";
+    private string Prior2FYHeader => phDTO?.PCFLines.FirstOrDefault()?.Prior2FYName ?? "Prior 2 FY";
 
     private void MarkAsDirty()
     {
@@ -731,8 +749,8 @@ else
             if (!isLoading && !ErrorsShown)
             {
 
-                await _fluentValidationValidator.ValidateAsync();
-                ErrorsShown = true;
+  //              await _fluentValidationValidator.ValidateAsync();
+   //             ErrorsShown = true;
             }
             // await ((Syncfusion.Blazor.DataForm.SfDataForm)MyForm).Validate();
 
@@ -905,8 +923,34 @@ else
                 line.Family_Code = matchingPrice.Family_Code ?? string.Empty;
                 line.Family_Code_Description = matchingPrice.Family_Code_Description ?? string.Empty;
                 line.ItemStatus = matchingPrice.ItemStatus ?? string.Empty;
+                line.StandardCost = matchingPrice.StandardCost;
             }
         }
+
+        var fiscalSummaries = await CustomerService.GetCustomerItemFiscalSummaryAsync(phDto.CustomerInfo.CustNum);
+        var byItem = fiscalSummaries.ToDictionary(
+    f => f.Item,
+    f => f,
+    StringComparer.OrdinalIgnoreCase);
+        foreach (var line in phDto.PCFLines)
+        {
+            if (line?.ItemNum is null) continue;
+
+            if (byItem.TryGetValue(line.ItemNum, out var s))
+            {
+                // map to your fields (adjust names as your DTO requires)
+                line.CurrentFYSales   = s.FY_Current_Rev;
+                line.CurrentFYUnits     = s.FY_Current_Qty;
+                line.Prior1FYSales     = s.FY_Prior_Rev;
+                line.Prior1FYUnits       = s.FY_Prior_Qty;
+                line.Prior2FYSales    = s.FY_Prior2_Rev;
+                line.Prior2FYUnits      = s.FY_Prior2_Qty;
+
+                // Optional: keep the resolved FY label if you want to show "FY2025"
+                //line.CurrentFYName     = $"FY{s.CurrentFiscalYear}";
+            }
+        }
+
     }
 
     // Event Handlers

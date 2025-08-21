@@ -23,7 +23,7 @@ public class ItemPriceDto
 
     public string? ItemStatus { get; set; }
 
-
+    public double StandardCost { get; set; }      // im.cur_u_cost
 
     // Not mapped to DB; for display only  (Price Increase Tool)
     public decimal NewListPrice { get; set; }
