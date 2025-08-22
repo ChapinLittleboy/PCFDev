@@ -97,7 +97,8 @@ public class ExcelGenerator
         worksheet.Range["A17"].CellStyle.Font.Bold = true;
 
         // Write Item Details Starting from Row 19
-        var itemHeaders = new[] { "ItemNum", "ItemDesc", "Price", "Family_Code", "Family_Code_Description" };
+        var itemHeaders = new[] { "ItemNum", "ItemDesc", "Price", "Margin", "Family_Code", "Family_Code_Description", "FY2025_Sales", "FY2025_Units", "FY2024_Sales","FY2024_Units", "FY2023_Sales","FY2023_Units" };
+
         for (int i = 0; i < itemHeaders.Length; i++)
         {
             worksheet.Range[18, i + 1].Text = itemHeaders[i];
@@ -111,8 +112,18 @@ public class ExcelGenerator
             worksheet.Range[rowIndex, 1].Text = item.ItemNum;
             worksheet.Range[rowIndex, 2].Text = item.ItemDesc;
             worksheet.Range[rowIndex, 3].Number = item.ProposedPrice;
-            worksheet.Range[rowIndex, 4].Text = item.Family_Code;
-            worksheet.Range[rowIndex, 5].Text = item.Family_Code_Description;
+            worksheet.Range[rowIndex, 4].Number = (double)item.Margin;
+            worksheet.Range[rowIndex, 4].NumberFormat = "0.00%";
+            worksheet.Range[rowIndex, 5].Text = item.Family_Code;
+            worksheet.Range[rowIndex, 6].Text = item.Family_Code_Description;
+            worksheet.Range[rowIndex, 7].Number = (double)item.CurrentFYSales;
+            worksheet.Range[rowIndex, 8].Number = (double)item.CurrentFYUnits;
+            worksheet.Range[rowIndex, 9].Number = (double)item.Prior1FYSales;
+            worksheet.Range[rowIndex, 10].Number = (double)item.Prior1FYUnits;
+            worksheet.Range[rowIndex, 11].Number = (double)item.Prior2FYSales;
+            worksheet.Range[rowIndex, 12].Number = (double)item.Prior2FYUnits;
+         
+
 
             //worksheet.Range[rowIndex, 6].Number = item.PP1Price;
             // worksheet.Range[rowIndex, 7].Number = item.PP2Price;
