@@ -81,69 +81,12 @@ WHERE t.TemplateId = @TemplateId;";
             {
                 await conn.OpenAsync(ct);
 
-                // We LEFT JOIN both base views and choose one with CASE to keep the plan stable.
-                var sql = @"
-WITH S AS (
-    SELECT
-        pbs.combo_id,
-        pbs.display_label,
-        im.item,
-        im.Uf_CustomerFriendlyDescription AS [Description]
-    FROM dbo.item_mst AS im
-    INNER JOIN dbo.Chap_PriceBookSections AS pbs
-        ON im.Uf_PriceBookSection = pbs.combo_id
-    WHERE im.active_for_customer_portal = 1
-),
-L AS (
-    SELECT
-        l.ItemNum,
-        l.ItemDesc,
-        l.Family_Code,
-        l.NewListPrice, l.NewPP1Price, l.NewPP2Price, l.NewBM1Price, l.NewBM2Price, l.NewFOBPrice
-    FROM dbo.Chap_PriceBookDraftLine AS l
-    WHERE l.DraftId = @DraftId
-),
-BC AS (   -- Base Current (exclude future)
-    SELECT c.item,
-           c.ListPrice, c.PP1Price, c.PP2Price, c.BM1Price, c.BM2Price, c.FOBPrice
-    FROM dbo.v_ItemPrice_Current c
-),
-BL AS (   -- Base Latest (may include future)
-    SELECT b.item,
-           b.ListPrice, b.PP1Price, b.PP2Price, b.BM1Price, b.BM2Price, b.FOBPrice
-    FROM dbo.v_ItemPrice_Latest b
-),
-E AS (
-    SELECT
-        l.ItemNum,
-        -- Effective values: grid New* wins; otherwise choose Current vs Latest based on effectiveUseLatest
-        COALESCE(l.NewListPrice, CASE WHEN @UseLatest = 1 THEN BL.ListPrice ELSE BC.ListPrice END) AS ListPrice,
-        COALESCE(l.NewPP1Price,  CASE WHEN @UseLatest = 1 THEN BL.PP1Price  ELSE BC.PP1Price  END) AS PP1,
-        COALESCE(l.NewPP2Price,  CASE WHEN @UseLatest = 1 THEN BL.PP2Price  ELSE BC.PP2Price  END) AS PP2,
-        COALESCE(l.NewBM1Price,  CASE WHEN @UseLatest = 1 THEN BL.BM1Price  ELSE BC.BM1Price  END) AS BM1,
-        COALESCE(l.NewBM2Price,  CASE WHEN @UseLatest = 1 THEN BL.BM2Price  ELSE BC.BM2Price  END) AS BM2,
-        COALESCE(l.NewFOBPrice,  CASE WHEN @UseLatest = 1 THEN BL.FOBPrice  ELSE BC.FOBPrice  END) AS FOB
-    FROM L
-    LEFT JOIN BL ON BL.item = l.ItemNum
-    LEFT JOIN BC ON BC.item = l.ItemNum
-)
-SELECT
-    s.combo_id,
-    s.display_label,
-    s.item                             AS Item,
-    COALESCE(s.[Description], l.ItemDesc) AS [Description],
-    e.ListPrice                        AS unit_price1,
-    CASE WHEN @FourK = 'PP1' THEN e.PP1 ELSE e.BM1 END AS unit_price2,   -- 4k -> PP1 slot
-    CASE WHEN @TwelveK = 'PP2' THEN e.PP2 ELSE e.BM2 END AS unit_price3, -- 12.5k -> PP2 slot
-    CAST(NULL AS decimal(18,4))        AS unit_price4,
-    CAST(NULL AS decimal(18,4))        AS unit_price5,
-    CASE WHEN @IncludeFOB = 1 THEN e.FOB ELSE NULL END AS unit_price6
-FROM E e
-LEFT JOIN S ON S.item = e.ItemNum
-LEFT JOIN L l ON l.ItemNum = e.ItemNum
-ORDER BY s.combo_id, s.item;";
+                // Call the stored procedure instead of inlining the CTE SQL
+                await using var cmd = new SqlCommand("dbo.Chap_PriceBook_Preview", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
 
-                await using var cmd = new SqlCommand(sql, conn);
                 cmd.Parameters.AddWithValue("@DraftId", _draftId);
                 cmd.Parameters.AddWithValue("@UseLatest", effectiveUseLatest ? 1 : 0);
                 cmd.Parameters.AddWithValue("@FourK", fourK);       // 'PP1' or 'BM1'
@@ -153,6 +96,9 @@ ORDER BY s.combo_id, s.item;";
                 await using var r = await cmd.ExecuteReaderAsync(ct);
                 while (await r.ReadAsync(ct))
                 {
+                    // Output column order from the proc:
+                    // 0: combo_id, 1: display_label, 2: Item, 3: Description,
+                    // 4..9: unit_price1..unit_price6
                     string combo = r.IsDBNull(0) ? "WS1-SEC1-SS1-ACC0" : r.GetString(0);
                     var (ws, sec, ss, acc) = ParseCombo(combo);
                     string display = r.IsDBNull(1) ? "" : r.GetString(1);
@@ -160,8 +106,8 @@ ORDER BY s.combo_id, s.item;";
                     string desc = r.IsDBNull(3) ? "" : r.GetString(3);
 
                     decimal? up1 = r.IsDBNull(4) ? null : r.GetDecimal(4); // List
-                    decimal? up2 = r.IsDBNull(5) ? null : r.GetDecimal(5); // 4k -> PP1 slot
-                    decimal? up3 = r.IsDBNull(6) ? null : r.GetDecimal(6); // 12.5k -> PP2 slot
+                    decimal? up2 = r.IsDBNull(5) ? null : r.GetDecimal(5); // 4k (PP1/BM1 mapped in proc)
+                    decimal? up3 = r.IsDBNull(6) ? null : r.GetDecimal(6); // 12.5k (PP2/BM2 mapped in proc)
                     decimal? up4 = r.IsDBNull(7) ? null : r.GetDecimal(7);
                     decimal? up5 = r.IsDBNull(8) ? null : r.GetDecimal(8);
                     decimal? up6 = r.IsDBNull(9) ? null : r.GetDecimal(9); // FOB (optional)

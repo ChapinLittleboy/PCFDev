@@ -35,7 +35,7 @@ namespace PcfManager.Services
             string mode,
             bool useLatestInclFuture,
             string createdBy,
-            IEnumerable<ItemPricePbDto> rows);
+            List<ItemPricePbDto> rows);
     }
 
     public sealed class PriceBookDraftService : IPriceBookDraftService
@@ -51,7 +51,7 @@ namespace PcfManager.Services
             string mode,
             bool useLatestInclFuture,
             string createdBy,
-            IEnumerable<ItemPricePbDto> rows)
+            List<ItemPricePbDto> rows)
         {
             if (string.IsNullOrWhiteSpace(mode))
                 throw new ArgumentException("mode is required", nameof(mode));

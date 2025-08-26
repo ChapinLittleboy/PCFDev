@@ -6,6 +6,8 @@
 @using Syncfusion.Blazor.DropDowns
 @using Syncfusion.Blazor.Popups
 @using Syncfusion.Blazor.Lists
+@using PcfManager.Services
+@using PcfManager.Mappings
 @using Microsoft.Extensions.Logging
 @using FilterType = Syncfusion.Blazor.Grids.FilterType
 @inject DataService DataService
@@ -95,7 +97,7 @@ else
                           line-height: 1;        /* tight line box */
                           font-size: 0.7rem;    /* optional: slightly smaller text */
                       ">
-                Price increases affect all Price Lists ---  Only checked Price Lists show on Grid
+                Note: Price increases affect all Price Lists.  Checkbox only affects what shows in Grid below.
             </small>
 
         <div class="d-flex flex-wrap align-items-center">
@@ -106,7 +108,8 @@ else
                     <SfCheckBox TValue="bool"
                                 Label="@pl.Name"
                                 Checked="@selectedPriceListIds.Contains(pl.Id)"
-                                CheckedChanged="@((bool isChecked) => OnCheckboxChanged(pl.Id, isChecked))"/>
+                                CheckedChanged="@((bool isChecked) => OnCheckboxChanged(pl.Id, isChecked))"
+                                />
                 </div>
             }
         </div>
@@ -139,6 +142,15 @@ else
         <div class="mt-3">
             <SfButton CssClass="e-primary" @onclick="ApplyIncreases">
                 Apply percentages
+            </SfButton>
+        </div>
+    }
+
+    @if(showSaveDraftButton)
+    {
+        <div class="mt-3">
+            <SfButton CssClass="e-primary" @onclick="SaveDraftAndGoAsync">
+                Save Draft and Continue
             </SfButton>
         </div>
     }
@@ -331,6 +343,17 @@ else
 
     private bool isLoading = true;
     private string _mode = "PriceList";
+
+    private string selectedPriceListId = "PP1";
+
+    private bool showPcfGrid = false;
+    private bool showPriceListGrid = false;
+    private bool showGridButton = true;
+    private bool showApplyButton = false;
+    private bool showSaveDraftButton = false;
+    private List<ItemPriceDto> recordsObj = new();
+    private List<ItemPricePbDto> rows = new();
+
     private string Mode
     {
         get => _mode;
@@ -342,6 +365,8 @@ else
             showPriceListGrid = false;
             showGridButton    = false;
             showApplyButton   = false;
+            showSaveDraftButton = false;
+
 
             // now turn on the bits you want:
             showGridButton = true;
@@ -351,12 +376,7 @@ else
          //       showPriceListGrid = true;
         }
     }
-    private string selectedPriceListId = "PP1";
 
-    private bool showPcfGrid = false;
-    private bool showPriceListGrid = false;
-    private bool showGridButton = true;
-    private bool showApplyButton = false;
 
 
 
@@ -385,8 +405,35 @@ else
     {
         // 1) Make sure your ApplyIncreases already ran and filled the New* fields.
         // 2) Get the filtered/visible records from the grid:
-        var recordsObj = await MyPriceListGrid.GetFilteredRecordsAsync();
-        var rows = (IEnumerable<PcfManager.Services.ItemPricePbDto>)recordsObj;
+        //var recordsObj = await MyPriceListGrid.GetFilteredRecordsAsync();
+        //var rows = (IEnumerable<PcfManager.Services.ItemPricePbDto>)recordsObj;
+
+        var filteredObj = await MyPriceListGrid.GetFilteredRecordsAsync();
+
+        // Safely coerce to the right type
+        var filtered = filteredObj as IEnumerable<ItemPriceDto>
+            ?? (filteredObj as IEnumerable<object>)?.OfType<ItemPriceDto>()
+            ?? throw new InvalidOperationException("Expected IEnumerable<ItemPriceDto>.");
+
+        recordsObj = filtered.ToList();
+        rows = recordsObj.Select(s => new ItemPricePbDto
+        {
+            ItemNum = s.Item,
+            ItemDesc = s.Description,
+            Family_Code = s.Family_Code,
+            ListPrice = s.ListPrice,
+            PP1Price = s.PP1Price,
+            PP2Price = s.PP2Price,
+            BM1Price = s.BM1Price,
+            BM2Price = s.BM2Price,
+            FOBPrice = s.FOBPrice,
+            NewListPrice = s.NewListPrice,
+            NewPP1Price = s.NewPP1Price,
+            NewPP2Price = s.NewPP2Price,
+            NewBM1Price = s.NewBM1Price,
+            NewBM2Price = s.NewBM2Price,
+            NewFOBPrice = s.NewFOBPrice
+        }).ToList();
 
         // 3) Save via TVP
         long draftId = await DraftService.SaveDraftAsync(
@@ -396,7 +443,7 @@ else
             rows: rows);
 
         // Optional: navigate to a Draft details / choose-template page:
-        Nav.NavigateTo($"/pricebook/draft/{draftId}");
+        Nav.NavigateTo($"/pricebook2/{draftId}");
     }
     private void OnCheckboxChanged(string id, bool isChecked)
     {
@@ -459,6 +506,8 @@ else
             isLoading = false;
             showGridButton = false;
             showApplyButton = true;
+            
+
 
             StateHasChanged();
 
@@ -525,6 +574,8 @@ else
                     obj.NewFOBPrice = obj.FOBPrice;
                 }
             }
+
+             showSaveDraftButton = true;
             await MyPriceListGrid.Refresh();
         }
     }

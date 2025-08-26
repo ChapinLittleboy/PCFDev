@@ -1,4 +1,4 @@
-﻿@page "/pricebook2"
+﻿@page "/pricebook2/{DraftId:int}"
 @using System.Data
 @using Microsoft.Data.SqlClient
 @using Chapin.PriceBook
@@ -85,9 +85,10 @@ else
 }
 
 @code {
+    [Parameter] public int DraftId { get; set; }
     // ----- UI State -----
     private string Mode { get; set; } = "DraftLive"; // or "Version"
-    private long DraftId { get; set; }
+    //private long DraftId { get; set; }
     private int? SelectedTemplateId { get; set; }
     private bool ForceCurrentOnly { get; set; } = false;
 
@@ -121,8 +122,8 @@ else
     {
         Templates.Clear();
 
-        var connStr = Config.GetConnectionString("Default")
-            ?? throw new InvalidOperationException("Missing connection string 'Default'.");
+        var connStr = Config.GetConnectionString("CiiSQL10rw")
+            ?? throw new InvalidOperationException("Missing connection string 'CiiSQL10rw'.");
 
         const string sql = @"
 SELECT TemplateId, TemplateName, ExcelFileName
@@ -153,8 +154,8 @@ ORDER BY TemplateName;";
         IsBusy = true;
         try
         {
-            var connStr = Config.GetConnectionString("Default")
-                ?? throw new InvalidOperationException("Missing connection string 'Default'.");
+            var connStr = Config.GetConnectionString("CiiSQL10rw")
+                ?? throw new InvalidOperationException("Missing connection string 'CiiSQL10rw'.");
 
             // Resolve Excel template full path
             var (templatePath, templateName) = await ResolveTemplatePathByTemplateIdAsync(connStr, SelectedTemplateId.Value);
@@ -199,8 +200,8 @@ ORDER BY TemplateName;";
         IsBusy = true;
         try
         {
-            var connStr = Config.GetConnectionString("Default")
-                ?? throw new InvalidOperationException("Missing connection string 'Default'.");
+            var connStr = Config.GetConnectionString("CiiSQL10rw")
+                ?? throw new InvalidOperationException("Missing connection string 'CiiSQL10rw'.");
 
             // Resolve Excel template from Version (joins to Template)
             var (templatePath, templateName) = await ResolveTemplatePathByVersionIdAsync(connStr, VersionId);
@@ -258,9 +259,9 @@ ORDER BY TemplateName;";
         var templateName = r.GetString(0);
         var excelName = r.GetString(1);
 
-        var templatesRoot = Config["PriceBook:TemplatesRoot"];
+        var templatesRoot = Config["PriceBook:TemplatesFolder"];
         if (string.IsNullOrWhiteSpace(templatesRoot))
-            throw new InvalidOperationException("Missing configuration 'PriceBook:TemplatesRoot' (folder path).");
+            throw new InvalidOperationException("Missing configuration 'PriceBook:TemplatesFolder' (folder path).");
 
         var fullPath = Path.Combine(templatesRoot, excelName);
         if (!System.IO.File.Exists(fullPath))
@@ -288,9 +289,9 @@ WHERE v.VersionId = @Id;";
         var templateName = r.GetString(0);
         var excelName = r.GetString(1);
 
-        var templatesRoot = Config["PriceBook:TemplatesRoot"];
+        var templatesRoot = Config["PriceBook:TemplatesFolder"];
         if (string.IsNullOrWhiteSpace(templatesRoot))
-            throw new InvalidOperationException("Missing configuration 'PriceBook:TemplatesRoot' (folder path).");
+            throw new InvalidOperationException("Missing configuration 'PriceBook:TemplatesFolder' (folder path).");
 
         var fullPath = Path.Combine(templatesRoot, excelName);
         if (!System.IO.File.Exists(fullPath))
