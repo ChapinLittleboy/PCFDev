@@ -3,6 +3,10 @@
 @using Microsoft.Data.SqlClient
 @using Chapin.PriceBook
 @using Microsoft.AspNetCore.Components.Forms
+@using Syncfusion.Blazor.RichTextEditor
+@using Syncfusion.XlsIO
+
+@inject PcfManager.Services.IPriceBookVersionService VersionService
 @inject IConfiguration Config
 @inject IWebHostEnvironment Env
 
@@ -29,7 +33,8 @@
             </div>
             <div class="col-sm-4">
                 <label class="form-label">Template</label>
-                <select class="form-select" @bind="SelectedTemplateId">
+                <select class="form-select" @bind="SelectedTemplateId" @bind:event="onchange" @bind:after="OnTemplateChangedAsync">
+                    
                     <option value="">-- select template --</option>
                     @foreach (var t in Templates)
                     {
@@ -84,6 +89,24 @@ else
     </div>
 }
 
+<div class="card p-3 mb-3" style="display: @(string.IsNullOrWhiteSpace(TextBox4Content) && string.IsNullOrWhiteSpace(TextBox2Content) ? "none" : "block")">
+    <div class="row g-2">
+
+        <div class="col-sm-6">
+            <label class="form-label">Terms Text</label>
+            <SfRichTextEditor @bind-Value="TextBox2Content" Readonly="true">
+                <RichTextEditorInlineMode Enable="true" ShowOnSelection="false" />
+            </SfRichTextEditor>
+        </div>
+        <div class="col-sm-6">
+            <label class="form-label">Title Text</label>
+            <SfRichTextEditor @bind-Value="TextBox4Content" Readonly="true">
+                <RichTextEditorInlineMode Enable="true" ShowOnSelection="false" />
+            </SfRichTextEditor>
+        </div>
+    </div>
+</div>
+
 @code {
     [Parameter] public int DraftId { get; set; }
     // ----- UI State -----
@@ -99,7 +122,10 @@ else
     private string? LastOutputRelativePath { get; set; }
     private string? LastMessage { get; set; }
     private string? ErrorMessage { get; set; }
-    
+
+    private string TextBox4Content { get; set; } = string.Empty;
+    private string TextBox2Content { get; set; } = string.Empty;
+
 
     // ----- Templates dropdown -----
     private readonly List<TemplateRow> Templates = new();
@@ -159,6 +185,9 @@ ORDER BY TemplateName;";
 
             // Resolve Excel template full path
             var (templatePath, templateName) = await ResolveTemplatePathByTemplateIdAsync(connStr, SelectedTemplateId.Value);
+
+            // Extract additional data from template (TextBox 4 and TextBox 2)
+            var (textBox4Content, textBox2Content) = await ExtractTextFromTemplateAsync(templatePath);
 
             // Build sources
             var legacy = new SqlDataSource(connStr); // existing legacy source
@@ -324,4 +353,109 @@ WHERE v.VersionId = @Id;";
         var rel = $"/pricebooks/{Uri.EscapeDataString(safeName)}";
         return rel;
     }
+
+    private async Task FreezeAndGenerateAsync(int draftId, int templateId, string createdBy)
+    {
+        // 1) Build version (freeze)
+        var info = await VersionService.BuildVersionAsync(draftId, templateId, createdBy, label: null);
+
+        // 2) Resolve template full path (Templates/PriceBooks under content root)
+        var templatesRoot = System.IO.Path.Combine(Env.ContentRootPath, "Templates", "PriceBooks");
+        var templatePath = System.IO.Path.Combine(templatesRoot, info.ExcelFileName);
+        if (!System.IO.File.Exists(templatePath))
+            throw new FileNotFoundException($"Excel template not found at '{templatePath}'.");
+
+        // 3) Generate using your existing generator + DraftVersionDataSource
+        var connStr = Config.GetConnectionString("Default")!;
+        var legacy = new Chapin.PriceBook.SqlDataSource(connStr);
+        var snap = new Chapin.PriceBook.DraftVersionDataSource(connStr, info.VersionId);
+
+        var gen = new Chapin.PriceBook.PriceBookGenerator(new Chapin.PriceBook.IDataSource[] { legacy, snap });
+
+        var outputName = $"PriceBook_Version_{info.VersionId}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+        var req = new Chapin.PriceBook.PriceBookRequest(
+            TemplatePath: templatePath,
+            SourceKey: snap.Key,
+            ExcludeFuturePrices: false,
+            OutputFileName: outputName
+        );
+
+        var bytes = await gen.GenerateAsync(req);
+
+        // 4) Save to desired folder (public or private)
+        var generatedFolder = System.IO.Path.Combine(Env.WebRootPath ?? "wwwroot", "GeneratedPriceBooks");
+        System.IO.Directory.CreateDirectory(generatedFolder);
+        var outPath = System.IO.Path.Combine(generatedFolder, outputName);
+        await System.IO.File.WriteAllBytesAsync(outPath, bytes);
+
+        // Optional: show link
+        var url = $"/GeneratedPriceBooks/{Uri.EscapeDataString(outputName)}";
+        // ... assign to a field to show on the page
+    }
+
+    private async Task<(string TextBox4Content, string TextBox2Content)> ExtractTextFromTemplateAsync(string templatePath)
+    {
+        try
+        {
+            using var excelEngine = new ExcelEngine();
+            var app = excelEngine.Excel;
+            app.DefaultVersion = ExcelVersion.Xlsx;
+
+            using var fs = new FileStream(templatePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var wb = app.Workbooks.Open(fs);
+            var ws = wb.Worksheets[0];
+
+            // In your template there are exactly two text boxes:
+            //   tbs[0] = header ("MSD PRICE LIST …")
+            //   tbs[1] = terms  ("HDA in season standard Terms: …")
+            var tbs = ws.TextBoxes;
+
+            string tb0 = tbs.Count >= 1 ? (tbs[0].Text ?? string.Empty) : string.Empty;
+            string tb1 = tbs.Count >= 2 ? (tbs[1].Text ?? string.Empty) : string.Empty;
+
+            // Convert plain text to minimal HTML for SfRichTextEditor (preserve newlines)
+            static string AsHtml(string text)
+            {
+                if (string.IsNullOrEmpty(text)) return string.Empty;
+                var encoded = System.Net.WebUtility.HtmlEncode(text);
+                // wrap in a <p> and keep line breaks
+                return "<p>" + encoded.Replace("\r\n", "<br/>").Replace("\n", "<br/>") + "</p>";
+            }
+
+            return (AsHtml(tb0), AsHtml(tb1));
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Failed to extract text from template: {ex.Message}";
+            return (string.Empty, string.Empty);
+        }
+    }
+
+
+
+
+    private async Task OnTemplateChangedAsync()
+    {
+        // Clear previous content
+        TextBox4Content = string.Empty;
+        TextBox2Content = string.Empty;
+
+        if (SelectedTemplateId is int templateId)
+        {
+            try
+            {
+                var connStr = Config.GetConnectionString("CiiSQL10rw")
+                    ?? throw new InvalidOperationException("Missing connection string 'CiiSQL10rw'.");
+
+                var (templatePath, _) = await ResolveTemplatePathByTemplateIdAsync(connStr, templateId);
+                (TextBox4Content, TextBox2Content) = await ExtractTextFromTemplateAsync(templatePath);
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = ex.Message;
+            }
+        }
+    }
+
+
 }

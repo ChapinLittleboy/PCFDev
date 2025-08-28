@@ -120,6 +120,9 @@ var csrw = builder.Configuration.GetConnectionString("CiiSQL10rw")
 builder.Services.AddSingleton<IDataSource>(new SqlDataSource(csro));
 builder.Services.AddSingleton<IPriceBookDraftService>(sp =>
     new PriceBookDraftService(csrw));
+builder.Services.AddSingleton<IPriceBookVersionService>(_ =>
+    new PriceBookVersionService(csrw));
+
 // If you add another source: builder.Services.AddSingleton<IDataSource>(new AltDataSource(...));
 
 // Register generator
