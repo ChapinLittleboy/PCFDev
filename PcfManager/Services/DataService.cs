@@ -1331,6 +1331,7 @@ LEFT JOIN
             ) md
               ON ip.item = md.item
              AND ip.effect_date = md.max_date
+WHERE im.active_for_customer_portal = 1
             ORDER BY ip.item;";
 
         using var connection = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);

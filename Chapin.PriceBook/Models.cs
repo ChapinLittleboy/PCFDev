@@ -24,5 +24,13 @@ public sealed record PriceBookRow(
     decimal? PP2 ,     // unit_price3   Prepaid 12.5k
     decimal? BM1,     // unit_price4 
     decimal? BM2 ,     // unit_price5
-    decimal? FOB      // unit_price6
+    decimal? FOB ,     // unit_price6
+    string? UPC = "",
+    int? QTY = 1,
+    int? masterQty = null,
+    int? palletQty = null,
+    decimal? MSRP = null
+
 );
+
+

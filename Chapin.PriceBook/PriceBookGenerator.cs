@@ -167,7 +167,12 @@ public sealed class PriceBookGenerator : IPriceBookGenerator
                                 Set(sheet, r, header, "LIST PRICE", row.ListPrice);
                                 Set(sheet, r, header, "PPD $4000", row.PP1);
                                 Set(sheet, r, header, "PPD $12,500", row.PP2);
-                            }
+                                Set(sheet, r, header, "UPC", row.UPC);
+                                Set(sheet, r, header, "QTY", row.QTY);
+                                Set(sheet, r, header, "MASTERQTY", row.masterQty);
+                                Set(sheet, r, header, "PALLETQTY", row.palletQty);
+
+                        }
 
                             // Optional: apply currency formats for the three price columns
                             ApplyCurrencyFormat(sheet, header, firstDataRow, firstDataRow + items.Count - 1,
@@ -251,6 +256,8 @@ public sealed class PriceBookGenerator : IPriceBookGenerator
         for (int c = 1; c <= lastCol; c++)
         {
             var raw = sheet[headerRow, c].Text?.Trim() ?? "";
+            if (raw.StartsWith("UPC"))
+                raw = "UPC";
             if (!string.IsNullOrEmpty(raw))
                 map[NormalizeHeader(raw)] = c;
         }
