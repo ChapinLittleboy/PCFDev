@@ -853,7 +853,7 @@ else
     {
         if (phDto == null) throw new ArgumentNullException(nameof(phDto));
 
-        var result = await DataService.GetBuyerInfoAsync(custNum);
+        var result = await DataService.GetBuyerInfoFromSytelineAsync(custNum);
         // Changing logic to always update buyer info if found in the CustomerBuyerInformation table.
         if (!string.IsNullOrWhiteSpace(result?.BuyerName))
         {

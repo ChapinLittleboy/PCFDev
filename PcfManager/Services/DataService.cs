@@ -154,7 +154,21 @@ public class DataService
                 new { CustNum = custNum });
         return result;
     }
+    public async Task<dynamic> GetBuyerInfoFromSytelineAsync(string custNum)
+    {
+        // SQL query to retrieve the needed fields
+        var sql = @"
+        SELECT TOP 1 Uf_BuyerName as BuyerName, Uf_BuyerEmail as BuyerEmail, Uf_BuyerPhone as BuyerPhone
+        FROM customer_mst 
+        WHERE LTRIM(RTRIM(cust_num)) = @CustNum and Cust_seq = 0";
 
+        using var
+            connection = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName); // Replace with your DB connection factory
+        var result =
+            await connection.QueryFirstOrDefaultAsync<dynamic>(sql,
+                new { CustNum = custNum });
+        return result;
+    }
     public async Task<PCFHeaderDTO> GetHeaderDtoNorepAsync(int pcfNumber)
     {
         var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName);
