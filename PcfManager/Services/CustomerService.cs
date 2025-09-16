@@ -222,6 +222,8 @@ Bounds AS (
         MAX(CASE WHEN v.FiscalYear = f.FYCurrent - 1 THEN v.FiscalYearEnd   END) AS FYPriorEnd,
         MIN(CASE WHEN v.FiscalYear = f.FYCurrent - 2 THEN v.FiscalYearStart END) AS FYPrior2Start,
         MAX(CASE WHEN v.FiscalYear = f.FYCurrent - 2 THEN v.FiscalYearEnd   END) AS FYPrior2End,
+        MIN(CASE WHEN v.FiscalYear = f.FYCurrent - 3 THEN v.FiscalYearStart END) AS FYPrior3Start,
+        MAX(CASE WHEN v.FiscalYear = f.FYCurrent - 3 THEN v.FiscalYearEnd   END) AS FYPrior3End,
         MAX(CASE WHEN v.FiscalYear = f.FYCurrent     THEN v.FiscalYearEnd   END) AS FYCurrentEnd
     FROM Tempwork.dbo.FiscalCalendarVw v
     CROSS JOIN FY f
@@ -244,7 +246,7 @@ InvoiceData AS (
         ON cal.[Date] = CAST(ih.inv_date AS date)
     CROSS JOIN Bounds b
     WHERE ih.cust_num = @CustNum
-      AND CAST(ih.inv_date AS date) BETWEEN b.FYPrior2Start AND b.FYCurrentEnd
+      AND CAST(ih.inv_date AS date) BETWEEN b.FYPrior3Start AND b.FYCurrentEnd
       AND (@Item IS NULL OR ii.item = @Item)
 
     UNION ALL
@@ -265,7 +267,7 @@ InvoiceData AS (
         ON cal.[Date] = CAST(ih.inv_date AS date)
     CROSS JOIN Bounds b
     WHERE ih.cust_num = @CustNum
-      AND CAST(ih.inv_date AS date) BETWEEN b.FYPrior2Start AND b.FYCurrentEnd
+      AND CAST(ih.inv_date AS date) BETWEEN b.FYPrior3Start AND b.FYCurrentEnd
       AND (@Item IS NULL OR ii.item = @Item)
 ),
 Agg AS (
@@ -275,10 +277,12 @@ Agg AS (
         SUM(CASE WHEN d.FiscalYear = b.FYCurrent     THEN d.RevAmount   ELSE 0 END) AS FY_Current_Rev,
         SUM(CASE WHEN d.FiscalYear = b.FYCurrent - 1 THEN d.RevAmount   ELSE 0 END) AS FY_Prior_Rev,
         SUM(CASE WHEN d.FiscalYear = b.FYCurrent - 2 THEN d.RevAmount   ELSE 0 END) AS FY_Prior2_Rev,
+       SUM(CASE WHEN d.FiscalYear = b.FYCurrent - 3 THEN d.RevAmount   ELSE 0 END) AS FY_Prior3_Rev,
 
         SUM(CASE WHEN d.FiscalYear = b.FYCurrent     THEN d.QtyInvoiced ELSE 0 END) AS FY_Current_Qty,
         SUM(CASE WHEN d.FiscalYear = b.FYCurrent - 1 THEN d.QtyInvoiced ELSE 0 END) AS FY_Prior_Qty,
-        SUM(CASE WHEN d.FiscalYear = b.FYCurrent - 2 THEN d.QtyInvoiced ELSE 0 END) AS FY_Prior2_Qty
+        SUM(CASE WHEN d.FiscalYear = b.FYCurrent - 2 THEN d.QtyInvoiced ELSE 0 END) AS FY_Prior2_Qty,
+         SUM(CASE WHEN d.FiscalYear = b.FYCurrent - 3 THEN d.QtyInvoiced ELSE 0 END) AS FY_Prior3_Qty
     FROM InvoiceData d
     CROSS JOIN Bounds b
     GROUP BY d.Item
@@ -290,9 +294,11 @@ SELECT
     a.FY_Current_Rev,
     a.FY_Prior_Rev,
     a.FY_Prior2_Rev,
+    a.FY_Prior3_Rev,
     a.FY_Current_Qty,
     a.FY_Prior_Qty,
-    a.FY_Prior2_Qty
+    a.FY_Prior2_Qty,
+    a.FY_Prior3_Qty
 FROM Agg a
 CROSS JOIN Bounds b
 ORDER BY a.Item;
