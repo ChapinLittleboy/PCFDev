@@ -9,8 +9,9 @@
 @inject PcfManager.Services.IPriceBookVersionService VersionService
 @inject IConfiguration Config
 @inject IWebHostEnvironment Env
+@inject IJSRuntime JS 
 
-<h2>Price Book (v2)</h2>
+<h2>Price Book Generator</h2>
 
 <InputRadioGroup @bind-Value="Mode" class="pb-3 d-block">
     <div class="form-check">
@@ -44,7 +45,7 @@
             </div>
             <div class="col-sm-3 form-check" style="padding-top: 2rem;">
                 <input class="form-check-input" type="checkbox" id="forceCurrent" @bind="ForceCurrentOnly" />
-                <label class="form-check-label" for="forceCurrent">Force Current (exclude future)</label>
+                <label class="form-check-label" for="forceCurrent">Don't include prices with future effective dates</label>
             </div>
             <div class="col-sm-2" style="padding-top: 2rem;">
                 <button class="btn btn-primary w-100" @onclick="GenerateFromDraftLiveAsync" disabled="@IsBusy">
@@ -75,10 +76,11 @@ else
     </div>
 }
 
+
 @if (!string.IsNullOrWhiteSpace(LastOutputRelativePath))
 {
     <div class="alert alert-success">
-        <div><strong>File ready:</strong> <a href="@LastOutputRelativePath" download>@System.IO.Path.GetFileName(LastOutputRelativePath)</a></div>
+        <div><strong>Price Book downloaded</strong></div>
         <div class="small text-muted">@LastMessage</div>
     </div>
 }
@@ -88,6 +90,8 @@ else
         @ErrorMessage
     </div>
 }
+
+
 
 <div class="card p-3 mb-3" style="display: @(string.IsNullOrWhiteSpace(TextBox4Content) && string.IsNullOrWhiteSpace(TextBox2Content) ? "none" : "block")">
     <div class="row g-2">
@@ -207,6 +211,10 @@ ORDER BY TemplateName;";
 
             var bytes = await gen.GenerateAsync(request);
             var relPath = await SaveToWwwrootAsync(bytes, outputFileName);
+
+            // 3) Auto-download to the user (no link)
+            using var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
+            await JS.InvokeVoidAsync("downloadFileFromStream", outputFileName, streamRef);
 
             LastOutputRelativePath = relPath;
             LastMessage = $"Mode=DraftLive, Template='{templateName}', ExcludeFuturePrices={ForceCurrentOnly}";
