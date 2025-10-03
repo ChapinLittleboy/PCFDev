@@ -14,6 +14,7 @@ using Syncfusion.Blazor;
 using System.Data;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using PcfManager.Infrastructure;
+//using Blazored.LocalStorage;
 
 
 
@@ -112,6 +113,7 @@ builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("D
 builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<PCFPageState>();
 builder.Services.AddScoped<ITemplateProvider, FileSystemTemplateProvider>();
+//builder.Services.AddBlazoredLocalStorage();
 
 var csro = builder.Configuration.GetConnectionString("CiiSQL10ro")
            ?? builder.Configuration["ConnectionStrings:CiiSQL10ro"]!;

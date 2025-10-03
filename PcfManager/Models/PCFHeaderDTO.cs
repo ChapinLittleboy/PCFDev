@@ -527,11 +527,11 @@ public class PCFHeaderDTOValidator : AbstractValidator<PCFHeaderDTO>
 
 
 
-        RuleFor(x => x.Buyer)
-            .Cascade(CascadeMode.Continue).NotEmpty().WithMessage("Buyer Name is required.");
-        RuleFor(x => x.BuyerEmail)
-            .Cascade(CascadeMode.Continue).NotEmpty().WithMessage("Buyer Email is required.")
-            .EmailAddress().WithMessage("Invalid email format");
+       // RuleFor(x => x.Buyer)
+       //     .Cascade(CascadeMode.Continue).NotEmpty().WithMessage("Buyer Name is required.");
+       // RuleFor(x => x.BuyerEmail)
+       //     .Cascade(CascadeMode.Continue).NotEmpty().WithMessage("Buyer Email is required.")
+       //     .EmailAddress().WithMessage("Invalid email format");
 
 
         RuleFor(x => x.RepID)

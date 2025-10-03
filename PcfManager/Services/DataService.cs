@@ -1,10 +1,12 @@
 ﻿using AutoMapper;
+using Dapper;
+using Microsoft.Data.SqlClient;
 using PcfManager.Data;
 using PcfManager.Models;
-using Dapper;
 using System.Data;
 using System.Dynamic;
 using System.Runtime.CompilerServices;
+using System.Text;
 using static Dapper.SqlMapper;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
@@ -1282,6 +1284,98 @@ EXEC sp_executesql @query;
         return result.ToList();
     }
 
+
+
+
+    public async Task<List<PCFDetail>> GetAllPCFDetailsWithQtyAsync()
+    {
+        string sql = @"
+    SELECT 
+        h.PCFNum, 
+        h.CustNum as CustomerNumber, 
+        h.CustName as CustomerName, 
+        h.ProgSDate as StartDate, 
+        h.ProgEDate as EndDate, 
+        h.PCFStatus, 
+        h.PcfType, 
+        h.VPSalesDate,
+        h.BuyingGroup, 
+        h.SubmittedBy,
+        h.GenNotes as GeneralNotes,
+        h.Promo_Terms_Text as PromoPaymentTermsText,
+        h.Standard_Freight_Terms as PromoFreightTerms,
+        h.Freight_Minimums as FreightMinimums,
+        cc.SalesManager,
+        cc.AddressLine1 as BillToAddress,
+        cc.City as BillToCity,
+        cc.State as BTState,
+        cc.Zip as BTZip,
+        cc.EUT,
+        i.PCFNumber,
+        i.ItemNum,
+        it.Stat as ItemStatus, 
+        i.CustNum,
+        i.ItemDesc,
+        i.ProposedPrice as ApprovedPrice
+        ,isnull(it.Uf_PrivateLabel,0) as PrivateLabelFlag
+        ,it.Family_Code, fc.Description as FamilyCodeDescription
+        ,LTRIM(RTRIM(coalesce(h.SRNum, cc.Salesman, ''))) as Salesman
+        ,isnull(p.FY2023_Qty, 0) as FY2023_Qty
+        ,isnull(p.FY2024_Qty, 0) as FY2024_Qty
+        ,isnull(p.FY2025_Qty, 0) as FY2025_Qty
+        ,isnull(p.FY2026_Qty, 0) as FY2026_Qty
+        ,isnull(p.FY2027_Qty, 0) as FY2027_Qty
+        ,isnull(p.FY2028_Qty, 0) as FY2028_Qty
+    FROM ProgControl h 
+    LEFT JOIN PCItems i 
+        ON CAST(h.PCFNum AS varchar(50)) = i.PCFNumber
+    LEFT JOIN ConsolidatedCustomers cc 
+        ON h.CustNum = cc.CustNum AND cc.CustSeq = 0
+    LEFT JOIN CIISQL10.Bat_App.dbo.Item_mst it 
+        ON i.ItemNum = it.Item
+    LEFT JOIN CIISQL10.Bat_App.dbo.famcode_mst fc on fc.family_code = it.family_code
+LEFT JOIN OPENQUERY([ciisql10], '
+    SELECT
+        ih.cust_num,
+        ii.item,
+        SUM(CASE WHEN fc.FiscalYear = 2023 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2023_Qty,
+        SUM(CASE WHEN fc.FiscalYear = 2024 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2024_Qty,
+        SUM(CASE WHEN fc.FiscalYear = 2025 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2025_Qty,
+        SUM(CASE WHEN fc.FiscalYear = 2026 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2026_Qty,
+        SUM(CASE WHEN fc.FiscalYear = 2027 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2027_Qty,
+        SUM(CASE WHEN fc.FiscalYear = 2028 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2028_Qty
+    FROM Bat_App.dbo.inv_hdr_mst_all AS ih
+    JOIN Bat_App.dbo.inv_item_mst_all AS ii
+        ON ih.inv_num = ii.inv_num
+    JOIN Bat_App.dbo.co_mst AS co
+        ON ih.co_num = co.co_num
+    JOIN Bat_App.dbo.coitem_mst AS ci
+        ON co.co_num     = ci.co_num
+       AND ii.co_release = ci.co_release
+       AND ii.co_line    = ci.co_line
+    JOIN tempwork.dbo.FiscalCalendarVw AS fc
+        ON ih.inv_date = fc.[Date]
+    WHERE fc.FiscalYear BETWEEN 2023 AND 2028
+    GROUP BY ih.cust_num, ii.item
+') AS p
+    ON ltrim(p.cust_num) = i.custnum
+   AND p.item     = i.itemnum
+
+
+    WHERE pcfnum > 0 and (h.ProgSDate > @StartDate or h.PCFStatus = 3) and h.PCFStatus <> 98";
+
+        _logger.LogInformation($"GetAllPCFDetailsAsync: {sql}");
+        using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName);
+        var headerDict = new Dictionary<int, PCFHeaderDTO>();
+
+        var result = await connection.QueryAsync<PCFDetail>(sql, new { StartDate = new DateTime(2019, 1, 1) });
+
+        return result.ToList();
+    }
+
+
+
+
     public async Task<List<FamilyCode>> GetAllFamilyCodesAsync()
     {
 
@@ -1354,6 +1448,136 @@ WHERE im.active_for_customer_portal = 1
         return prices.ToList();
 
     }
+
+
+public async Task RemoveItemsFromPCFAsync(IEnumerable<object> keys)
+{
+    if (keys is null)
+        throw new ArgumentNullException(nameof(keys));
+
+    // Normalize incoming anonymous objects -> (PCFNumber, ItemNum)
+    var keyPairs = new List<(int PCFNumber, string ItemNum)>();
+    foreach (var k in keys)
+    {
+        if (k is null)
+            continue;
+
+        var t = k.GetType();
+        var pcfProp = t.GetProperty("PCFNum") ?? t.GetProperty("PCFNumber");
+        var itemProp = t.GetProperty("ItemNum");
+        if (pcfProp == null || itemProp == null)
+            throw new ArgumentException("Each key must have PCFNum (or PCFNumber) and ItemNum properties.");
+
+        var pcfVal = pcfProp.GetValue(k);
+        var itemVal = itemProp.GetValue(k);
+
+        if (pcfVal is null || itemVal is null)
+            continue;
+
+        keyPairs.Add(((int)Convert.ChangeType(pcfVal, typeof(int)),
+                      (string)Convert.ChangeType(itemVal, typeof(string))));
+    }
+
+    if (keyPairs.Count == 0)
+        return;
+
+    using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName);
+    if (connection.State != ConnectionState.Open)
+        connection.Open();
+
+    using var tx = connection.BeginTransaction();
+
+    try
+    {
+        // Group by PCF to keep the ProgControl edit notes accurate per PCF
+        var groups = keyPairs.GroupBy(k => k.PCFNumber);
+
+        foreach (var grp in groups)
+        {
+            var pcfNumber = grp.Key;
+            var items = grp.Select(x => x.ItemNum).Distinct().ToList();
+            if (items.Count == 0)
+                continue;
+
+            // Build a VALUES list for a table variable using fully-parameterized values
+            var valuesSb = new StringBuilder();
+            var dp = new DynamicParameters();
+
+            int i = 0;
+            foreach (var pair in grp)
+            {
+                var pPcf = $"@pcf{i}";
+                var pItem = $"@item{i}";
+                if (valuesSb.Length > 0)
+                    valuesSb.Append(",");
+                valuesSb.Append($"({pPcf}, {pItem})");
+
+                dp.Add(pPcf, pair.PCFNumber, DbType.Int32);
+                dp.Add(pItem, pair.ItemNum, DbType.String);
+                i++;
+            }
+
+            // Optional metadata for archive (if you have these columns; otherwise remove them)
+            // Example: if PCItems_DeletedArchive has extra columns like DeletedOnUtc, DeletedReason, DeletedBy
+            // you can add them in the SELECT with literals. Here we assume schemas match 1:1.
+            var sql = $@"
+DECLARE @Keys TABLE (PCFNumber INT, ItemNum NVARCHAR(100));
+INSERT INTO @Keys (PCFNumber, ItemNum) VALUES {valuesSb};
+
+-- 1) Archive first
+INSERT INTO PCItems_DeletedArchiveTesting
+SELECT pi.*
+FROM PCItems pi
+JOIN @Keys k
+  ON k.PCFNumber = pi.PCFNumber
+ AND k.ItemNum    = pi.ItemNum;
+
+-- 2) Delete from live table
+DELETE pi
+FROM PCItemsTesting pi
+JOIN @Keys k
+  ON k.PCFNumber = pi.PCFNumber
+ AND k.ItemNum    = pi.ItemNum;";
+
+            await connection.ExecuteAsync(sql, dp, tx, commandTimeout: 60);
+
+            // 3) Update ProgControl.EditNotes for this PCF
+            var itemList = string.Join(", ", items);
+            var stamp = DateTime.Now.ToString("yyyy-MM-dd"); // or DateTime.UtcNow if you prefer
+            var appendText = $"  {stamp} Deleted items {itemList} from PCF";
+
+            // PCFNum in ProgControl is a string key
+            var pcfStringKey = pcfNumber.ToString();
+
+            var updateNotesSql = @"
+UPDATE ProgControlTesting
+SET EditNotes = COALESCE(EditNotes, '') + @AppendText
+WHERE PCFNum = @PCFNum;";
+
+            await connection.ExecuteAsync(updateNotesSql,
+                new { AppendText = appendText, PCFNum = pcfStringKey }, tx);
+        }
+
+        tx.Commit();
+    }
+    catch
+    {
+        tx.Rollback();
+        throw;
+    }
+}
+
+
+// Persist the "delete later" request for separate handling
+public Task MarkItemsForDeletionAsync(IEnumerable<object> laterRequests)
+    {
+        // Persist to a PCF_DeleteQueue (or a column on the detail row)
+        // Include who/when if you track audit
+        throw new NotImplementedException();
+    }
+
+
+   
 
 }
 

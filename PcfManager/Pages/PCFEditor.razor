@@ -29,7 +29,7 @@ else
     <p>Retrieving User settings.</p>
 }
 <PageTitle>PCF Editor</PageTitle>
-<div id="form-container">
+<div id="form-container" >
     <h3>
         <span class="icon">
             <i class="fas fa-file-alt"></i>
@@ -53,31 +53,31 @@ else
                         <p>Total Programs: @ProgramAllowances.Count</p>
                         <table class="table table-striped">
                             <thead>
-                                <tr>
-                                    <th>Allowance Type</th>
-                                    <th>Percentage / Amount</th>
-                                    <th>Uf_ProgNotes</th>
-                                    <th>Uf_ProgOtherNotes</th>
-                                    <th>UfGrossNet</th>
-                                    <th>Uf_FixVar</th>
-                                    <th>Uf_PolicyA</th>
-                                    <th>Uf_ProgTiers</th>
-                                </tr>
+                            <tr>
+                                <th>Allowance Type</th>
+                                <th>Percentage / Amount</th>
+                                <th>Uf_ProgNotes</th>
+                                <th>Uf_ProgOtherNotes</th>
+                                <th>UfGrossNet</th>
+                                <th>Uf_FixVar</th>
+                                <th>Uf_PolicyA</th>
+                                <th>Uf_ProgTiers</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                @foreach (var program in ProgramAllowances)
-                                {
-                                    <tr>
-                                        <td>@program.AllowanceType</td>
-                                        <td>@program.PercentageOrAmount</td>
-                                        <td>@program.Uf_ProgNotes</td>
-                                        <td>@program.Uf_ProgOtherNotes</td>
-                                        <td>@program.Uf_GrossNet</td>
-                                        <td>@program.Uf_FixVar</td>
-                                        <td>@program.Uf_PolicyA</td>
-                                        <td>@program.Uf_ProgTiers</td>
-                                    </tr>
-                                }
+                            @foreach (var program in ProgramAllowances)
+                            {
+                                <tr>
+                                    <td>@program.AllowanceType</td>
+                                    <td>@program.PercentageOrAmount</td>
+                                    <td>@program.Uf_ProgNotes</td>
+                                    <td>@program.Uf_ProgOtherNotes</td>
+                                    <td>@program.Uf_GrossNet</td>
+                                    <td>@program.Uf_FixVar</td>
+                                    <td>@program.Uf_PolicyA</td>
+                                    <td>@program.Uf_ProgTiers</td>
+                                </tr>
+                            }
                             </tbody>
                         </table>
                     }
@@ -149,8 +149,8 @@ else
         <a href="@GetCmaFileLink()" target="_blank">Download Excel Spreadsheet</a>
         </div>
         -->
-
-        <SfDataForm  ID="MyForm" Model="@phDTO" OnSubmit="@SubmitFormAsync"  ButtonsAlignment="FormButtonsAlignment.Center" Width="90%" @ref="MyForm"
+        
+        <SfDataForm  ID="MyForm" Model="@phDTO" OnSubmit="@SubmitFormAsync"  ButtonsAlignment="FormButtonsAlignment.Center" Width="500px" @ref="MyForm"
         >
             <FormValidator>
                 <FluentValidationValidator @ref="_fluentValidationValidator"  ></FluentValidationValidator>
@@ -476,53 +476,86 @@ else
                         <div class="section-head">PCF Items</div>
                     </HeaderTemplate>
 
-                    <ContentTemplate>
+                    
 
                         <div>
+                            <div class="row">
+                                <div class="e-mastertext">Click the switch to toggle visibility</div>
+                                <div class="toggles">
+                                <div class="toggle">
+                                    <label class="showhide">Item Description</label>
+                                    <SfSwitch ValueChange="@((Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args) => { change("ItemDesc", args); })"
+                                              @bind-Checked="@Check" TChecked="bool" />
+                                </div>
 
-                            <SfGrid DataSource="@phDTO.PCFLines" ID="MyGrid" CssClass="custom-grid" AllowResizing="true" AllowExcelExport="true" Toolbar="@(new string[] { "ExcelExport"})">
+                                <div class="toggle">
+                                    <label class="showhide">Item Status</label>
+                                    <SfSwitch ValueChange="@((Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args) => { change("ItemStatus", args); })"
+                                              @bind-Checked="@Check1" TChecked="bool" />
+                                </div>
 
+                                <div class="toggle">
+                                    <label class="showhide">12k Price</label>
+                                    <SfSwitch ValueChange="@((Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args) => { change("PP2Price", args); })"
+                                              @bind-Checked="@Check2" TChecked="bool" />
+                                </div>
+                                <div class="toggle">
+                                    <label class="showhide">FOB</label>
+                                    <SfSwitch ValueChange="@((Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args) => { change("FOBPrice", args); })"
+                                              @bind-Checked="@Check3" TChecked="bool" />
+                                </div>
+                                <div class="toggle">
+                                    <label class="showhide">Family Code</label>
+                                    <SfSwitch ValueChange="@((Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args) => { change("Family_Code", args); })"
+                                              @bind-Checked="@Check4" TChecked="bool" />
+                                </div>
+                            </div>
+
+                            </div>
+                            <SfGrid @ref="Grid" DataSource="@phDTO.PCFLines" ID="MyGrid"
+                                    AllowResizing="true" AllowExcelExport="true" Height="400"
+                                    AllowTextWrap="true" AllowReordering="true" ShowColumnChooser="false"
+                                    EnablePersistence="false"
+                                    Toolbar="@ToolbarItems"
+                                    EnableStickyHeader="true">
+                                
+                                <GridTextWrapSettings WrapMode="WrapMode.Header"/>
                                 <GridEvents OnToolbarClick="ToolbarClick" QueryCellInfo="OnQueryCellInfo" OnActionComplete="OnCellEdit" TValue="PCFItemDTO"></GridEvents>
 
                                 <GridColumns>
-                                    <GridColumn Field="ItemNum" HeaderText="Item Number" Width="125" IsPrimaryKey="true" TextAlign="TextAlign.Left"></GridColumn>
-                                    <GridColumn Field="ItemDesc" HeaderText="Description" Width="350" TextAlign="TextAlign.Left" AllowEditing="false" ></GridColumn>
-                                    <GridColumn HeaderText="Item Status" Width="100" TextAlign="TextAlign.Center" AllowEditing="false">
-                                        <Template>
-                                            @{
-                                                var itemStatus = (context as PCFItemDTO)?.ItemStatus;
-                                                <span>@GetItemStatusDefinition(itemStatus)</span>
-                                            }
-                                        </Template>
+                                    <GridColumn Field="ItemNum" HeaderText="Item Number" Width="125" TextAlign="TextAlign.Left" Freeze="FreezeDirection.Left" IsFrozen="true"></GridColumn>
+                                    <GridColumn Field="ItemDesc" HeaderText="Description" Width="350" TextAlign="TextAlign.Left" AllowEditing="false"></GridColumn>
+                                    <GridColumn Field="ItemStatus" HeaderText="Item Status" Width="100" TextAlign="TextAlign.Center">
+
                                     </GridColumn>
                                     <GridColumn Field="ProposedPrice" HeaderText="Accepted Price" Width="150" TextAlign="TextAlign.Right" Format="N2" EditType="EditType.NumericEdit"></GridColumn>
-                                <GridColumn Field="Margin" HeaderText="Margin" Width="120"
-                                            TextAlign="TextAlign.Right" Format="P2" AllowEditing="false">
-                                </GridColumn>
+                                    <GridColumn Field="Margin" HeaderText="Margin" Width="120"
+                                                TextAlign="TextAlign.Right" Format="P2" AllowEditing="false">
+                                    </GridColumn>
                                     <GridColumn Field="PP1Price" HeaderText="$4k Price (PP1)" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
-                                    <GridColumn HeaderText="Pct to 4k" Width="75" TextAlign="TextAlign.Right" Template="@PercentageTemplate" />
-                                    <GridColumn Field="PP2Price" HeaderText="$12.5k Price (PP2)" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false" ></GridColumn>
-                                    <GridColumn Field="FOBPrice" HeaderText="FOB Price" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false" ></GridColumn>
+                                    <GridColumn HeaderText="Pct to 4k" Width="75" TextAlign="TextAlign.Right" Template="@PercentageTemplate"/>
+                                    <GridColumn Field="PP2Price" HeaderText="$12.5k Price (PP2)" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                    <GridColumn Field="FOBPrice" HeaderText="FOB Price" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
                                     <GridColumn Field="Family_Code" HeaderText="Family Code" Width="150" TextAlign="TextAlign.Left" AllowEditing="false"></GridColumn>
 
-                                <GridColumn Field="CurrentFYSales" HeaderText="@($"{CurrentFYHeader} Sales")" Width="150"
-                                            TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
-                                <GridColumn Field="CurrentFYUnits" HeaderText="@($"{CurrentFYHeader} Units")" Width="150"
-                                            TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
+                                    <GridColumn Field="CurrentFYSales" HeaderText="@($"{CurrentFYHeader} Sales")" Width="150"
+                                                TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                    <GridColumn Field="CurrentFYUnits" HeaderText="@($"{CurrentFYHeader} Units")" Width="150"
+                                                TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
 
-                                <GridColumn Field="Prior1FYSales" HeaderText="@($"{Prior1FYHeader} Sales")" Width="150"
-                                            TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
-                                <GridColumn Field="Prior1FYUnits" HeaderText="@($"{Prior1FYHeader} Units")" Width="150"
-                                            TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
+                                    <GridColumn Field="Prior1FYSales" HeaderText="@($"{Prior1FYHeader} Sales")" Width="150"
+                                                TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                    <GridColumn Field="Prior1FYUnits" HeaderText="@($"{Prior1FYHeader} Units")" Width="150"
+                                                TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
 
-                                <GridColumn Field="Prior2FYSales" HeaderText="@($"{Prior2FYHeader} Sales")" Width="150"
-                                            TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
-                                <GridColumn Field="Prior2FYUnits" HeaderText="@($"{Prior2FYHeader} Units")" Width="150"
-                                            TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
+                                    <GridColumn Field="Prior2FYSales" HeaderText="@($"{Prior2FYHeader} Sales")" Width="150"
+                                                TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                    <GridColumn Field="Prior2FYUnits" HeaderText="@($"{Prior2FYHeader} Units")" Width="150"
+                                                TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
                                 </GridColumns>
                             </SfGrid>
                         </div>
-                    </ContentTemplate>
+                   
                     <!-- <p><span class="highlight">Note:Yellow highlighted prices are lower than the $4k price</span> </p> -->
                 </FormTemplate>
 
@@ -557,44 +590,110 @@ else
 
 
 <style>
+    .toggles {
+        display: flex;
+        flex-wrap: wrap;     /* keep them on one line? remove this */
+        gap: 12px 24px;      /* row/column spacing */
+        align-items: center;
+    }
+
+    .toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;            /* space between label and switch */
+    }
+
+    .showhid
     .highlight {
-    background-color: yellow;
+        background-color: yellow;
     }
     /* Adjust the font size and row height for the Syncfusion grid */
     .custom-grid .e-rowcell, 
     .custom-grid .e-headercell {
-    font-size: 10px; /* Change this to your desired font size */
-    line-height: 15px; /* Adjust the line height */
-    height: 20px; /* Set the row height */
+        font-size: 10px; /* Change this to your desired font size */
+        line-height: 15px; /* Adjust the line height */
+        height: 20px; /* Set the row height */
     }
     .custom-grid .e-grid .e-row {
-    height: 20px; /* Ensure the row height is consistent */
+        height: 20px; /* Ensure the row height is consistent */
     }
     .audit-log-link {
-    text-decoration: none;
-    font-size: 15px;
-    color: #007bff; /* Bootstrap primary color */
-    margin-left: 5px;
+        text-decoration: none;
+        font-size: 15px;
+        color: #007bff; /* Bootstrap primary color */
+        margin-left: 5px;
     }
     .audit-log-link:hover {
-    text-decoration: underline;
+        text-decoration: underline;
     }
     .refresh-button {
-    height: 54%; /* Makes it the same height as the text box */
-    background-color: white !important; /* Override default Syncfusion blue */
-    color: black; /* Adjust text color for visibility */
-    border: 1px solid #ccc; /* Match input field border */
-    padding: 0 10px; /* Keep width manageable */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    align-self: flex-end;
+        height: 54%; /* Makes it the same height as the text box */
+        background-color: white !important; /* Override default Syncfusion blue */
+        color: black; /* Adjust text color for visibility */
+        border: 1px solid #ccc; /* Match input field border */
+        padding: 0 10px; /* Keep width manageable */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        align-self: flex-end;
     }
     .e-data-form, .e-grid {
-    width: 95% !important;
-    max-width: none !important;
+        width: 100% !important;
+        max-width: none !important;
     }
 
+    #form-container {
+        max-width: 1250px;   
+        width: 100%;        
+        margin-inline: auto;
+        padding: 1rem;      
+        box-sizing: border-box;
+    }
+
+    .e-grid .e-headercell {
+        font-size: 0.4rem;
+        padding: 0.0rem 0;
+        line-height: 1.5;
+    }
+    .e-grid .e-rowcell {
+        font-size: 0.7rem;
+        padding: 0.3rem 0;
+        line-height: 1.2;
+    }
+    .e-grid .e-filtermenudiv {
+        margin: 2px 0.15rem 1px 0.01rem;
+    }
+    .e-grid .e-headercell .e-filtered::before {
+        color: red;
+        font-weight: bold;
+    }
+    .e-grid .e-headercell .e-headertext {
+        font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        font-size: 13px;          /* tweak as needed */
+        font-weight: 700;          /* 400–700 */
+        
+        padding-inline: 6px; /* adds left & right space */
+    }
+   
+    .worksheet-header-row {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        margin-bottom: 2rem;
+    }
+    .worksheet-header-title {
+        flex: 1;
+        text-align: left;
+    }
+    .worksheet-header-btn {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+    }
+    .worksheet-header-spacer {
+        flex: 1;
+    }
+    body { }
 </style>
 
 @code {
@@ -607,11 +706,11 @@ else
     private bool isAuditLogDialogVisible = false;
     private bool isLoadingAuditLog = false;
     private List<PcfAuditLog> auditLogEntries; // Replace with your actual Audit Log entry type.
-
+    private SfGrid<PCFItemDTO> Grid;
 
     private SfDialog emailDialog;
     private bool showEmailDialog = false;
-
+    Boolean Check = true, Check1 = true, Check2 = true, Check3=true, Check4 = true, Check5 = true, Check6 = true;
 
 
     private bool HasUnsavedChanges = false;
@@ -639,6 +738,9 @@ else
     private string? userName;
     private string? DatabaseKey;
     private List<SalesProgram> ProgramAllowances = new List<SalesProgram>();
+    private bool isDescriptionVisible = true;
+    private string ButtonText => isDescriptionVisible ? "Hide Description" : "Show Description";
+
     
     private SfDialog ProgramDialog;
 
@@ -658,7 +760,15 @@ else
     private string CurrentFYHeader => phDTO?.PCFLines.FirstOrDefault()?.CurrentFYName ?? "Current FY";
     private string Prior1FYHeader => phDTO?.PCFLines.FirstOrDefault()?.Prior1FYName ?? "Prior FY";
     private string Prior2FYHeader => phDTO?.PCFLines.FirstOrDefault()?.Prior2FYName ?? "Prior 2 FY";
+    public int FormItemColumnSpan = 3;
+    public int FormGroupColumn = 1;
+    public int FormColumn = 1;
+    private bool detailsVisible = true;
 
+    private List<object> ToolbarItems = new()
+    {
+        "ExcelExport"
+    };
     private void MarkAsDirty()
     {
         HasUnsavedChanges = true;
@@ -1304,4 +1414,56 @@ else
         //service.SendPcfPdfEmailWithAttachment(phDTO, srEmailAddress);
     }
 
+    private async Task ToggleDescriptionColumn()
+    {
+        // The column name to toggle (use Field or HeaderText)
+        string columnName = "ItemDesc";
+
+        if (isDescriptionVisible)
+        {
+            // Hide the column
+            await Grid.HideColumnsAsync(new string[] { columnName });
+        }
+        else
+        {
+            // Show the column
+            await Grid.ShowColumnsAsync(new string[] { columnName });
+        }
+
+        // Toggle the state and force a UI update for the button text
+        isDescriptionVisible = !isDescriptionVisible;
+        StateHasChanged();
+    }
+
+    public void LayoutChangedhandler(string activeBreakpoint)
+    {
+        if (activeBreakpoint == "Small")
+        {
+            FormGroupColumn = FormColumn = 1;
+        }
+        else if (activeBreakpoint == "Medium")
+        {
+            FormColumn = 2;
+            FormItemColumnSpan = 1;
+        }
+        else
+        {
+            FormColumn = FormGroupColumn = FormItemColumnSpan = 2;
+        }
+    }
+    public void change(string name, Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args)
+    {
+        if (this.Grid != null)
+        {
+            if (args.Checked)
+            {
+                this.Grid.ShowColumnAsync(name, "Field");
+            }
+            else
+            {
+                this.Grid.HideColumnAsync(name, "Field");
+            }
+        }
+        StateHasChanged();
+    }
 }

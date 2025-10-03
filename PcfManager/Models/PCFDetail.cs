@@ -32,9 +32,20 @@ public class PCFDetail
         public string? Family_Code_Description { get; set; }
         public string? Salesman { get; set; }
         public string? EUT { get; set; }
+        public bool DeleteNow { get; set; }
+        public bool DeleteLater { get; set; }
 
-        // Not mapped to DB; for display only
-        public decimal NewPrice { get; set; }
+        public decimal FY2023_Qty { get; set; }
+        public decimal FY2024_Qty { get; set; }
+        public decimal FY2025_Qty { get; set; }
+        public decimal FY2026_Qty { get; set; }
+        public decimal FY2027_Qty { get; set; }
+        public decimal FY2028_Qty { get; set; }
+
+
+
+    // Not mapped to DB; for display only
+    public decimal NewPrice { get; set; }
     // New: parsed decimal version
     public decimal ApprovedPriceDecimal
     {

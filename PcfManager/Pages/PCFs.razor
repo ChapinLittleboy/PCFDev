@@ -64,6 +64,11 @@ else
             <GridEvents OnToolbarClick="ToolbarClickHandler" Filtering="FilteringHandler" TValue="PCFHeaderDTO"></GridEvents>
             <GridPageSettings PageSize="200" PageSizes="true" PageCount="8"></GridPageSettings>
             <GridColumns>
+                <GridColumn HeaderText="Action!" Width="7%">
+                    <Template Context="pcfObj">
+                        <SfButton CssClass="custom-edit-button e-small" @onclick="() => NavigateToPCFDetails(((PCFHeaderDTO)pcfObj).PcfNumber)">Edit</SfButton>
+                    </Template>
+                </GridColumn>
                 <GridColumn Field="CustomerNumber" HeaderText="Cust Num" Width="8%" TextAlign="TextAlign.Left"></GridColumn>
                 <GridColumn Field="CustomerName" HeaderText="Customer Name" Width="15%" TextAlign="TextAlign.Left"></GridColumn>
                 <GridColumn Field="StartDate" HeaderText="Start Date" Format="d" Width="8%" TextAlign="TextAlign.Center"></GridColumn>
@@ -106,11 +111,7 @@ else
                 <GridColumn Field="MarketType" HeaderText="Market" Width="8%" TextAlign="TextAlign.Left"></GridColumn>
                 <GridColumn Field="SalesManager" HeaderText="SalesMgr" Width="8%"></GridColumn>
 
-                <GridColumn HeaderText="Action!" Width="7%">
-                    <Template Context="pcfObj">
-                        <SfButton CssClass="custom-edit-button e-small" @onclick="() => NavigateToPCFDetails(((PCFHeaderDTO)pcfObj).PcfNumber)">Edit</SfButton>
-                    </Template>
-                </GridColumn>
+
 
             </GridColumns>
         </SfGrid>
