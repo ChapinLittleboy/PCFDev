@@ -33,15 +33,16 @@ public class PCFDetail
         public string? Salesman { get; set; }
         public string? EUT { get; set; }
         public bool DeleteNow { get; set; }
-        public bool DeleteLater { get; set; }
+        public bool DeleteLater { get; set; } // not in DB, used in UI to mark for deletion
 
-        public decimal FY2023_Qty { get; set; }
+    public decimal FY2023_Qty { get; set; }
         public decimal FY2024_Qty { get; set; }
         public decimal FY2025_Qty { get; set; }
         public decimal FY2026_Qty { get; set; }
         public decimal FY2027_Qty { get; set; }
         public decimal FY2028_Qty { get; set; }
 
+       
 
 
     // Not mapped to DB; for display only

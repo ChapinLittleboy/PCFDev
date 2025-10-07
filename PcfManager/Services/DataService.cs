@@ -3,9 +3,12 @@ using Dapper;
 using Microsoft.Data.SqlClient;
 using PcfManager.Data;
 using PcfManager.Models;
+using Syncfusion.Blazor.RichTextEditor;
 using System.Data;
+using System.Drawing;
 using System.Dynamic;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.Arm;
 using System.Text;
 using static Dapper.SqlMapper;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
@@ -24,7 +27,8 @@ public class DataService
     private readonly ILogger<DataService> _logger;
 
 
-    public DataService(DbConnectionFactory dbConnectionFactory, IUserService userService, IMapper mapper, IConfiguration configuration, ILogger<DataService> logger)
+    public DataService(DbConnectionFactory dbConnectionFactory, IUserService userService, IMapper mapper,
+        IConfiguration configuration, ILogger<DataService> logger)
     {
         _dbConnectionFactory = dbConnectionFactory;
         _userService = userService;
@@ -133,7 +137,9 @@ public class DataService
         ORDER BY date DESC";
 
         using var
-            connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName); // Replace with your DB connection factory
+            connection =
+                _dbConnectionFactory.CreateReadWriteConnection(_userService
+                    .CurrentPCFDatabaseName); // Replace with your DB connection factory
         var result =
             await connection.QueryFirstOrDefaultAsync<dynamic>(sql,
                 new { CustNum = custNum, CurrentPcfNum = currentPcfNum });
@@ -150,12 +156,15 @@ public class DataService
         WHERE custnum = @CustNum";
 
         using var
-            connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName); // Replace with your DB connection factory
+            connection =
+                _dbConnectionFactory.CreateReadWriteConnection(_userService
+                    .CurrentPCFDatabaseName); // Replace with your DB connection factory
         var result =
             await connection.QueryFirstOrDefaultAsync<dynamic>(sql,
                 new { CustNum = custNum });
         return result;
     }
+
     public async Task<dynamic> GetBuyerInfoFromSytelineAsync(string custNum)
     {
         // SQL query to retrieve the needed fields
@@ -165,12 +174,15 @@ public class DataService
         WHERE LTRIM(RTRIM(cust_num)) = @CustNum and Cust_seq = 0";
 
         using var
-            connection = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName); // Replace with your DB connection factory
+            connection =
+                _dbConnectionFactory.CreateReadOnlyConnection(_userService
+                    .CurrentSytelineDatabaseName); // Replace with your DB connection factory
         var result =
             await connection.QueryFirstOrDefaultAsync<dynamic>(sql,
                 new { CustNum = custNum });
         return result;
     }
+
     public async Task<PCFHeaderDTO> GetHeaderDtoNorepAsync(int pcfNumber)
     {
         var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName);
@@ -239,7 +251,8 @@ public class DataService
     {
         try
         {
-            using var connection = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
+            using var connection =
+                _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
 
             // Get the RepCode directly from UserService
             // Get the RepCode directly from UserService
@@ -273,7 +286,8 @@ public class DataService
     {
         try
         {
-            using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName); // ciisql01
+            using var connection =
+                _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName); // ciisql01
 
             // Get the RepCode directly from UserService
             var repCode = _userService.CurrentRep.RepCode;
@@ -302,7 +316,8 @@ public class DataService
     {
         try
         {
-            using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName); // ciisql01
+            using var connection =
+                _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName); // ciisql01
 
             var CurrentUserID = _userService.CurrentUser.UserId;
 
@@ -324,13 +339,15 @@ public class DataService
             return new PCFHeaderEntity();
         }
     }
+
     public async Task<PCFHeaderEntity> GetPCFHeaderAsync(int pcfNumber)
     {
         int CurrentUserID = 1;
 
         try
         {
-            using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName); // ciisql01
+            using var connection =
+                _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName); // ciisql01
 
             if (_userService.CurrentUser != null)
             {
@@ -339,10 +356,11 @@ public class DataService
             else
             {
                 _userService.InitializeUserAsync();
-                
+
             }
 
-            var sql = @"SELECT PCFNum, [Date], Warehouse, Dropship, OtherDropship, OtherWarehouse, DWOther, DWOtherText, ProgSDate, 
+            var sql =
+                @"SELECT PCFNum, [Date], Warehouse, Dropship, OtherDropship, OtherWarehouse, DWOther, DWOtherText, ProgSDate, 
 ProgEDate, p.CustNum, CustName, BTName, BTAddr, BTCity, BTState, BTZip, BTPhone, BTFax, BTFaxPerm, Buyer, RepName, RepEmail, 
 RepAgency, RepPhone, OtherTerms, STName, STAddr, STCity, STState, STZip, STPhone, CustContact, Email, BuyingGroup, 
 OtherDating, OtherDatingApprvl, FtPickUpAllow, FtDSPPD, FtDSDollars, GenNotes, NSShipNotes, RoutingNotes, AdPercSales, 
@@ -358,20 +376,22 @@ Join consolidatedcustomers cc on p.CustNum = cc.CustNum and cc.CustSeq = 0
             PCFNum = @PCFNum 
         ;";
 
-                var result = await connection.QueryFirstOrDefaultAsync<PCFHeaderEntity>(sql, new { PCFNum = pcfNumber, CurrentUserID = CurrentUserID });
+            var result = await connection.QueryFirstOrDefaultAsync<PCFHeaderEntity>(sql,
+                new { PCFNum = pcfNumber, CurrentUserID = CurrentUserID });
 
-                if (result == null)
-                {
-                    // Log unauthorized access attempt
-                    Console.WriteLine($"User {CurrentUserID} attempted to access a PCF {pcfNumber} they are not authorized for.");
+            if (result == null)
+            {
+                // Log unauthorized access attempt
+                Console.WriteLine(
+                    $"User {CurrentUserID} attempted to access a PCF {pcfNumber} they are not authorized for.");
 
-                    // Optionally, you can throw a custom exception
-                    // throw new UnauthorizedAccessException("You do not have access to view this PCF.");
-                }
-
-                return result;
+                // Optionally, you can throw a custom exception
+                // throw new UnauthorizedAccessException("You do not have access to view this PCF.");
             }
-     
+
+            return result;
+        }
+
 
         catch (Exception ex)
         {
@@ -435,14 +455,16 @@ Join consolidatedcustomers cc on p.CustNum = cc.CustNum and cc.CustSeq = 0
     {
         try
         {
-            using var connection = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
+            using var connection =
+                _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
 
             if (_userService.CurrentUser == null)
-       
+
             {
                 _userService.InitializeUserAsync();
 
             }
+
             // Get the RepCode directly from UserService
             var repCode = _userService.CurrentRep.RepCode;
 
@@ -464,12 +486,14 @@ Join consolidatedcustomers cc on p.CustNum = cc.CustNum and cc.CustSeq = 0
     {
         try
         {
-            using var connection = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
+            using var connection =
+                _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
             if (_userService.CurrentUser == null)
             {
                 _userService.InitializeUserAsync();
 
             }
+
             // Get the RepCode directly from UserService
             var repCode = _userService.CurrentRep.RepCode;
 
@@ -492,7 +516,8 @@ Join consolidatedcustomers cc on p.CustNum = cc.CustNum and cc.CustSeq = 0
     {
         try
         {
-            using var connection = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
+            using var connection =
+                _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
 
             // Get the RepCode directly from UserService
             // var repCode = _userService.CurrentRep.RepCode;
@@ -558,7 +583,8 @@ ORDER BY
     {
         try
         {
-            using var connection = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
+            using var connection =
+                _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
 
             // Get the RepCode directly from UserService
             var repCode = _userService.CurrentRep.RepCode;
@@ -597,8 +623,8 @@ ORDER BY
         {
             // Retrieve the current record from the database
             var oldRecord = await connection.QueryFirstOrDefaultAsync<PCFHeaderEntity>(
-            "SELECT * FROM Progcontrol WHERE PCFNum = @PCFNum",
-            new { pcfHeader.PcfNum });
+                "SELECT * FROM Progcontrol WHERE PCFNum = @PCFNum",
+                new { pcfHeader.PcfNum });
 
             if (oldRecord == null)
             {
@@ -653,15 +679,17 @@ ORDER BY
                 newVP = oldRecord.VPSalesApprovl;
             }
 
-            if (pcfHeader.PcfType != "PW" && pcfHeader.PcfType != "PD")  // If it is not 'PW' and not 'PD'
+            if (pcfHeader.PcfType != "PW" && pcfHeader.PcfType != "PD") // If it is not 'PW' and not 'PD'
             {
                 PromoTerms = string.Empty;
                 PromoPaymentTermsDescription = string.Empty;
             }
-            else  // this is a promo
+            else // this is a promo
             {
                 FreightTerms = !string.IsNullOrWhiteSpace(PromoFreightTerms) ? PromoFreightTerms : FreightTerms;
-                FreightMinimums = !string.IsNullOrWhiteSpace(PromoFreightMinimums) ? PromoFreightMinimums : FreightMinimums;
+                FreightMinimums = !string.IsNullOrWhiteSpace(PromoFreightMinimums)
+                    ? PromoFreightMinimums
+                    : FreightMinimums;
             }
 
 
@@ -736,15 +764,14 @@ Approved = @newApproval
                 PromoPaymentTermsDescription = PromoPaymentTermsDescription,
                 StandardPaymentTerms,
                 StandardPaymentTermsDescription,
-                FreightTerms,   // promofreightterms if promo, std if not
-                FreightMinimums,  // same
+                FreightTerms, // promofreightterms if promo, std if not
+                FreightMinimums, // same
                 pcfHeader.PcfNum,
                 pcfHeader.EUT,
                 pcfHeader.CustomerName,
                 SalesMngrApproval = newSMApprover,
                 SalesMngrDate = ApprovalDateTime,
                 VPSalesDate = ApprovalDateTime,
-
                 LastUpdatedBy = _userService.UserName,
                 LastUpdatedDate = currentDateTime,
                 pcfHeader.CustomerInfo.BillToPhone,
@@ -753,10 +780,7 @@ Approved = @newApproval
                 pcfHeader.BuyerPhone,
                 newVP,
                 newApproval,
-
-
                 PCFNumber = pcfHeader.PcfNum.ToString()
-
             };
 
 
@@ -774,6 +798,7 @@ Approved = @newApproval
 
 
     }
+
     public async Task UpsertPCFItemsAsync(List<PCFItemDTO> pcfLines)
     {
         var sqlUpdate = @"
@@ -821,6 +846,7 @@ Approved = @newApproval
 
         return databaseName;
     }
+
     public string GetSytelineDatabaseNameFromDatabaseKey(string databaseKey)
     {
         // Retrieve the value from the appsettings.json file
@@ -849,7 +875,7 @@ Approved = @newApproval
         string tableName,
         string changedBy,
         DateTime changedDate
-        ) where T : class
+    ) where T : class
     {
         var oldValues = oldRecord.GetType().GetProperties()
             .ToDictionary(p => p.Name, p => p.GetValue(oldRecord, null));
@@ -860,9 +886,7 @@ Approved = @newApproval
             .Where(kvp => oldValues.ContainsKey(kvp.Key) && !Equals(oldValues[kvp.Key], kvp.Value))
             .Select(kvp => new
             {
-                FieldName = kvp.Key,
-                OldValue = oldValues[kvp.Key]?.ToString(),
-                NewValue = kvp.Value?.ToString()
+                FieldName = kvp.Key, OldValue = oldValues[kvp.Key]?.ToString(), NewValue = kvp.Value?.ToString()
             });
 
         using (var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName))
@@ -898,7 +922,8 @@ Approved = @newApproval
             var result = await connection.ExecuteAsync("sp_UpdateConsolidatedCustomers",
                 parameters,
                 commandType: CommandType.StoredProcedure);
-            return parameters.Get<int>("@RecordsInserted"); // Assuming the stored procedure returns the number of records
+            return
+                parameters.Get<int>("@RecordsInserted"); // Assuming the stored procedure returns the number of records
         }
     }
 
@@ -961,7 +986,8 @@ Approved = @newApproval
                 return string.Empty; // Avoid querying with null/empty SalesManager
             }
 
-            using var connection = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
+            using var connection =
+                _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
 
             var email = await connection.QueryFirstOrDefaultAsync<string>(
                 "SELECT TOP 1 SalesManagerEmail FROM Chap_SalesManagers WHERE SalesManagerInitials = @SalesManager",
@@ -989,7 +1015,8 @@ Approved = @newApproval
                 return string.Empty; // Avoid querying with null/empty repCode
             }
 
-            using var connection = _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
+            using var connection =
+                _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
 
             var email = await connection.QueryFirstOrDefaultAsync<string>(
                 "SELECT TOP 1 EmailList FROM Chap_SalesRepEmail WHERE RepCode = @RepCode",
@@ -1113,6 +1140,7 @@ EXEC sp_executesql @query;
                 {
                     expando[property.Key] = property.Value ?? 0; // Replace NULLs with 0
                 }
+
                 expandoList.Add((ExpandoObject)expando);
             }
 
@@ -1129,7 +1157,8 @@ EXEC sp_executesql @query;
 
         using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName);
 
-        var query = "SELECT DISTINCT LTRIM(RTRIM(CustNum)) as CustNum, LTRIM(RTRIM(CustName)) as CustName FROM progcontrol WHERE pcfstatus = 3 ORDER BY custNum";
+        var query =
+            "SELECT DISTINCT LTRIM(RTRIM(CustNum)) as CustNum, LTRIM(RTRIM(CustName)) as CustName FROM progcontrol WHERE pcfstatus = 3 ORDER BY custNum";
 
         return (await connection.QueryAsync<PcfCustomer>(query)).ToList();
     }
@@ -1215,10 +1244,12 @@ EXEC sp_executesql @query;
                     currentHeader.PCFLines = new List<PCFItemDTO>();
                     headerDict.Add(currentHeader.PcfNum, currentHeader);
                 }
+
                 if (item != null)
                 {
                     currentHeader.PCFLines.Add(item);
                 }
+
                 return currentHeader;
             },
             new { RepCode = "not used" },
@@ -1290,50 +1321,64 @@ EXEC sp_executesql @query;
     public async Task<List<PCFDetail>> GetAllPCFDetailsWithQtyAsync()
     {
         string sql = @"
-    SELECT 
-        h.PCFNum, 
-        h.CustNum as CustomerNumber, 
-        h.CustName as CustomerName, 
-        h.ProgSDate as StartDate, 
-        h.ProgEDate as EndDate, 
-        h.PCFStatus, 
-        h.PcfType, 
-        h.VPSalesDate,
-        h.BuyingGroup, 
-        h.SubmittedBy,
-        h.GenNotes as GeneralNotes,
-        h.Promo_Terms_Text as PromoPaymentTermsText,
-        h.Standard_Freight_Terms as PromoFreightTerms,
-        h.Freight_Minimums as FreightMinimums,
-        cc.SalesManager,
-        cc.AddressLine1 as BillToAddress,
-        cc.City as BillToCity,
-        cc.State as BTState,
-        cc.Zip as BTZip,
-        cc.EUT,
-        i.PCFNumber,
-        i.ItemNum,
-        it.Stat as ItemStatus, 
-        i.CustNum,
-        i.ItemDesc,
-        i.ProposedPrice as ApprovedPrice
-        ,isnull(it.Uf_PrivateLabel,0) as PrivateLabelFlag
-        ,it.Family_Code, fc.Description as FamilyCodeDescription
-        ,LTRIM(RTRIM(coalesce(h.SRNum, cc.Salesman, ''))) as Salesman
-        ,isnull(p.FY2023_Qty, 0) as FY2023_Qty
-        ,isnull(p.FY2024_Qty, 0) as FY2024_Qty
-        ,isnull(p.FY2025_Qty, 0) as FY2025_Qty
-        ,isnull(p.FY2026_Qty, 0) as FY2026_Qty
-        ,isnull(p.FY2027_Qty, 0) as FY2027_Qty
-        ,isnull(p.FY2028_Qty, 0) as FY2028_Qty
-    FROM ProgControl h 
-    LEFT JOIN PCItems i 
-        ON CAST(h.PCFNum AS varchar(50)) = i.PCFNumber
-    LEFT JOIN ConsolidatedCustomers cc 
-        ON h.CustNum = cc.CustNum AND cc.CustSeq = 0
-    LEFT JOIN CIISQL10.Bat_App.dbo.Item_mst it 
-        ON i.ItemNum = it.Item
-    LEFT JOIN CIISQL10.Bat_App.dbo.famcode_mst fc on fc.family_code = it.family_code
+  SELECT 
+    h.PCFNum, 
+    h.CustNum as CustomerNumber, 
+    h.CustName as CustomerName, 
+    h.ProgSDate as StartDate, 
+    h.ProgEDate as EndDate, 
+    h.PCFStatus, 
+    h.PcfType, 
+    h.VPSalesDate,
+    h.BuyingGroup, 
+    h.SubmittedBy,
+    h.GenNotes as GeneralNotes,
+    h.Promo_Terms_Text as PromoPaymentTermsText,
+    h.Standard_Freight_Terms as PromoFreightTerms,
+    h.Freight_Minimums as FreightMinimums,
+    cc.SalesManager,
+    cc.AddressLine1 as BillToAddress,
+    cc.City as BillToCity,
+    cc.State as BTState,
+    cc.Zip as BTZip,
+    cc.EUT,
+    i.PCFNumber,
+    i.ItemNum,
+    it.Stat as ItemStatus, 
+    i.CustNum,
+    i.ItemDesc,
+    i.ProposedPrice as ApprovedPrice,
+    ISNULL(it.Uf_PrivateLabel,0) as PrivateLabelFlag,
+    it.Family_Code, 
+    fc.Description as FamilyCodeDescription,
+    LTRIM(RTRIM(COALESCE(h.SRNum, cc.Salesman, ''))) as Salesman,
+    ISNULL(p.FY2023_Qty, 0) as FY2023_Qty,
+    ISNULL(p.FY2024_Qty, 0) as FY2024_Qty,
+    ISNULL(p.FY2025_Qty, 0) as FY2025_Qty,
+    ISNULL(p.FY2026_Qty, 0) as FY2026_Qty,
+    ISNULL(p.FY2027_Qty, 0) as FY2027_Qty,
+    ISNULL(p.FY2028_Qty, 0) as FY2028_Qty,
+
+    -- NEW: 1 if (PCF, Item) exists in PcItemsDeleteLater; 0 otherwise
+    CAST(CASE WHEN d.PcfNum IS NOT NULL THEN 1 ELSE 0 END AS bit) AS DeleteLater
+
+FROM ProgControl h 
+LEFT JOIN PCItems i 
+    ON CAST(h.PCFNum AS varchar(50)) = i.PCFNumber
+LEFT JOIN ConsolidatedCustomers cc 
+    ON h.CustNum = cc.CustNum AND cc.CustSeq = 0
+LEFT JOIN CIISQL10.Bat_App.dbo.Item_mst it 
+    ON i.ItemNum = it.Item
+LEFT JOIN CIISQL10.Bat_App.dbo.famcode_mst fc 
+    ON fc.family_code = it.family_code
+
+-- NEW: join to Delete-Later (use DISTINCT to avoid accidental dup rows)
+LEFT JOIN (
+    SELECT DISTINCT PcfNum, ItemNum
+    FROM PcItemsDeleteLater
+) AS d
+    ON d.PcfNum = h.PCFNum
+   AND d.ItemNum = i.ItemNum
 LEFT JOIN OPENQUERY([ciisql10], '
     SELECT
         ih.cust_num,
@@ -1362,7 +1407,7 @@ LEFT JOIN OPENQUERY([ciisql10], '
    AND p.item     = i.itemnum
 
 
-    WHERE pcfnum > 0 and (h.ProgSDate > @StartDate or h.PCFStatus = 3) and h.PCFStatus <> 98";
+    WHERE h.pcfnum > 0 and (h.ProgSDate > @StartDate or h.PCFStatus = 3) and h.PCFStatus <> 98";
 
         _logger.LogInformation($"GetAllPCFDetailsAsync: {sql}");
         using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName);
@@ -1392,6 +1437,7 @@ LEFT JOIN OPENQUERY([ciisql10], '
         var result = (await connection.QueryAsync<FamilyCode>(query)).ToList();
         return result;
     }
+
     public async Task<List<FamilyCode>> GetAllFamilyCodesForSaleableItemsAsync()
     {
 
@@ -1450,79 +1496,81 @@ WHERE im.active_for_customer_portal = 1
     }
 
 
-public async Task RemoveItemsFromPCFAsync(IEnumerable<object> keys)
-{
-    if (keys is null)
-        throw new ArgumentNullException(nameof(keys));
-
-    // Normalize incoming anonymous objects -> (PCFNumber, ItemNum)
-    var keyPairs = new List<(int PCFNumber, string ItemNum)>();
-    foreach (var k in keys)
+    public async Task RemoveItemsFromPCFAsync(IEnumerable<object> keys)
     {
-        if (k is null)
-            continue;
+        if (keys is null)
+            throw new ArgumentNullException(nameof(keys));
 
-        var t = k.GetType();
-        var pcfProp = t.GetProperty("PCFNum") ?? t.GetProperty("PCFNumber");
-        var itemProp = t.GetProperty("ItemNum");
-        if (pcfProp == null || itemProp == null)
-            throw new ArgumentException("Each key must have PCFNum (or PCFNumber) and ItemNum properties.");
-
-        var pcfVal = pcfProp.GetValue(k);
-        var itemVal = itemProp.GetValue(k);
-
-        if (pcfVal is null || itemVal is null)
-            continue;
-
-        keyPairs.Add(((int)Convert.ChangeType(pcfVal, typeof(int)),
-                      (string)Convert.ChangeType(itemVal, typeof(string))));
-    }
-
-    if (keyPairs.Count == 0)
-        return;
-
-    using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName);
-    if (connection.State != ConnectionState.Open)
-        connection.Open();
-
-    using var tx = connection.BeginTransaction();
-
-    try
-    {
-        // Group by PCF to keep the ProgControl edit notes accurate per PCF
-        var groups = keyPairs.GroupBy(k => k.PCFNumber);
-
-        foreach (var grp in groups)
+        // Normalize incoming anonymous objects -> (PCFNumber, ItemNum)
+        var keyPairs = new List<(int PCFNumber, string ItemNum)>();
+        foreach (var k in keys)
         {
-            var pcfNumber = grp.Key;
-            var items = grp.Select(x => x.ItemNum).Distinct().ToList();
-            if (items.Count == 0)
+            if (k is null)
                 continue;
 
-            // Build a VALUES list for a table variable using fully-parameterized values
-            var valuesSb = new StringBuilder();
-            var dp = new DynamicParameters();
+            var t = k.GetType();
+            var pcfProp = t.GetProperty("PCFNum") ?? t.GetProperty("PCFNumber");
+            var itemProp = t.GetProperty("ItemNum");
+            if (pcfProp == null || itemProp == null)
+                throw new ArgumentException("Each key must have PCFNum (or PCFNumber) and ItemNum properties.");
 
-            int i = 0;
-            foreach (var pair in grp)
+            var pcfVal = pcfProp.GetValue(k);
+            var itemVal = itemProp.GetValue(k);
+
+            if (pcfVal is null || itemVal is null)
+                continue;
+
+            keyPairs.Add(((int)Convert.ChangeType(pcfVal, typeof(int)),
+                (string)Convert.ChangeType(itemVal, typeof(string))));
+        }
+
+        if (keyPairs.Count == 0)
+            return;
+
+        using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName);
+        if (connection.State != ConnectionState.Open)
+            connection.Open();
+
+        using var tx = connection.BeginTransaction();
+
+        try
+        {
+            // Group by PCF to keep the ProgControl edit notes accurate per PCF
+            var groups = keyPairs.GroupBy(k => k.PCFNumber);
+
+            foreach (var grp in groups)
             {
-                var pPcf = $"@pcf{i}";
-                var pItem = $"@item{i}";
-                if (valuesSb.Length > 0)
-                    valuesSb.Append(",");
-                valuesSb.Append($"({pPcf}, {pItem})");
+                var pcfNumber = grp.Key;
+                var items = grp.Select(x => x.ItemNum).Distinct().ToList();
+                if (items.Count == 0)
+                    continue;
 
-                dp.Add(pPcf, pair.PCFNumber, DbType.Int32);
-                dp.Add(pItem, pair.ItemNum, DbType.String);
-                i++;
-            }
+                // Build a VALUES list for a table variable using fully-parameterized values
+                var valuesSb = new StringBuilder();
+                var dp = new DynamicParameters();
 
-            // Optional metadata for archive (if you have these columns; otherwise remove them)
-            // Example: if PCItems_DeletedArchive has extra columns like DeletedOnUtc, DeletedReason, DeletedBy
-            // you can add them in the SELECT with literals. Here we assume schemas match 1:1.
-            var sql = $@"
+                int i = 0;
+                foreach (var pair in grp)
+                {
+                    var pPcf = $"@pcf{i}";
+                    var pItem = $"@item{i}";
+                    if (valuesSb.Length > 0)
+                        valuesSb.Append(",");
+                    valuesSb.Append($"({pPcf}, {pItem})");
+
+                    dp.Add(pPcf, pair.PCFNumber, DbType.Int32);
+                    dp.Add(pItem, pair.ItemNum, DbType.String);
+                    i++;
+                }
+
+                // Optional metadata for archive (if you have these columns; otherwise remove them)
+                // Example: if PCItems_DeletedArchive has extra columns like DeletedOnUtc, DeletedReason, DeletedBy
+                // you can add them in the SELECT with literals. Here we assume schemas match 1:1.
+                Console.WriteLine(valuesSb);
+                var sql = $@"
 DECLARE @Keys TABLE (PCFNumber INT, ItemNum NVARCHAR(100));
 INSERT INTO @Keys (PCFNumber, ItemNum) VALUES {valuesSb};
+
 
 -- 1) Archive first
 INSERT INTO PCItems_DeletedArchiveTesting
@@ -1539,45 +1587,332 @@ JOIN @Keys k
   ON k.PCFNumber = pi.PCFNumber
  AND k.ItemNum    = pi.ItemNum;";
 
-            await connection.ExecuteAsync(sql, dp, tx, commandTimeout: 60);
+                await connection.ExecuteAsync(sql, dp, tx, commandTimeout: 60);
 
-            // 3) Update ProgControl.EditNotes for this PCF
-            var itemList = string.Join(", ", items);
-            var stamp = DateTime.Now.ToString("yyyy-MM-dd"); // or DateTime.UtcNow if you prefer
-            var appendText = $"  {stamp} Deleted items {itemList} from PCF";
+                // 3) Update ProgControl.EditNotes for this PCF
+                var itemList = string.Join(", ", items);
+                var stamp = DateTime.Now.ToString("yyyy-MM-dd"); // or DateTime.UtcNow if you prefer
+                var appendText = $"  {stamp} Deleted items {itemList} from PCF";
 
-            // PCFNum in ProgControl is a string key
-            var pcfStringKey = pcfNumber.ToString();
+                // PCFNum in ProgControl is a string key
+                var pcfStringKey = pcfNumber.ToString();
 
-            var updateNotesSql = @"
+                var updateNotesSql = @"
 UPDATE ProgControlTesting
 SET EditNotes = COALESCE(EditNotes, '') + @AppendText
 WHERE PCFNum = @PCFNum;";
 
-            await connection.ExecuteAsync(updateNotesSql,
-                new { AppendText = appendText, PCFNum = pcfStringKey }, tx);
+                await connection.ExecuteAsync(updateNotesSql,
+                    new { AppendText = appendText, PCFNum = pcfStringKey }, tx);
+            }
+
+            tx.Commit();
+        }
+        catch
+        {
+            tx.Rollback();
+            throw;
+        }
+    }
+
+
+    public async Task MarkItemsForDeletionAsync(IEnumerable<object> laterRequests)
+    {
+        if (laterRequests is null)
+            throw new ArgumentNullException(nameof(laterRequests));
+
+        // Normalize: accept objects with { PCFNum or PCFNumber, ItemNum, Reason? }
+        var rows = new List<(int PcfNum, string ItemNum, string Reason)>();
+        foreach (var r in laterRequests)
+        {
+            if (r is null)
+                continue;
+
+            var t = r.GetType();
+            var pcfProp = t.GetProperty("PCFNum") ?? t.GetProperty("PCFNumber") ?? t.GetProperty("PcfNum");
+            var itemProp = t.GetProperty("ItemNum");
+            var reasonProp = t.GetProperty("Reason");
+
+            if (pcfProp == null || itemProp == null)
+                throw new ArgumentException("Each request must include PCFNum (or PCFNumber) and ItemNum.");
+
+            var pcfVal = pcfProp.GetValue(r);
+            var itemVal = itemProp.GetValue(r);
+            var reasonVal = reasonProp?.GetValue(r);
+
+            if (pcfVal is null || itemVal is null)
+                continue;
+
+            var reason = Convert.ToString(reasonVal);
+            if (string.IsNullOrWhiteSpace(reason))
+                reason = "Slow Sales";
+
+            rows.Add(((int)Convert.ChangeType(pcfVal, typeof(int)),
+                      (string)Convert.ChangeType(itemVal, typeof(string)),
+                      reason));
         }
 
-        tx.Commit();
+        if (rows.Count == 0)
+            return;
+
+        using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName);
+        if (connection.State != ConnectionState.Open)
+            connection.Open();
+        using var tx = connection.BeginTransaction();
+
+        try
+        {
+            // Build parameterized VALUES list
+            var valuesSb = new StringBuilder();
+            var dp = new DynamicParameters();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = rows[i];
+                var pPcf = $"@pcf{i}";
+                var pItem = $"@item{i}";
+                var pReason = $"@reason{i}";
+
+                if (valuesSb.Length > 0)
+                    valuesSb.Append(",");
+                valuesSb.Append($"({pPcf}, {pItem}, {pReason})");
+
+                dp.Add(pPcf, r.PcfNum, DbType.Int32);
+                dp.Add(pItem, r.ItemNum, DbType.String);
+                dp.Add(pReason, r.Reason, DbType.String);
+            }
+
+            var sql = $@"
+DECLARE @Keys TABLE (PcfNum INT NOT NULL, ItemNum NVARCHAR(100) NOT NULL, Reason NVARCHAR(200) NULL);
+INSERT INTO @Keys (PcfNum, ItemNum, Reason) VALUES {valuesSb};
+
+-- Upsert: insert new; if exists, update Reason and DateAdded
+MERGE INTO PcItemsDeleteLater AS tgt
+USING (
+    SELECT PcfNum, ItemNum, COALESCE(NULLIF(Reason, ''), 'Slow Sales') AS Reason
+    FROM @Keys
+) AS src
+ON (tgt.PcfNum = src.PcfNum AND tgt.ItemNum = src.ItemNum)
+WHEN MATCHED THEN UPDATE
+    SET tgt.Reason = src.Reason,
+        tgt.DateAdded = SYSDATETIME()
+WHEN NOT MATCHED THEN INSERT (PcfNum, ItemNum, DateAdded, Reason)
+    VALUES (src.PcfNum, src.ItemNum, SYSDATETIME(), src.Reason);";
+
+            await connection.ExecuteAsync(sql, dp, tx, commandTimeout: 60);
+
+            tx.Commit();
+        }
+        catch
+        {
+            tx.Rollback();
+            throw;
+        }
     }
-    catch
+
+
+
+    public async Task UnmarkItemsForDeletionAsync(IEnumerable<object> keys)
     {
-        tx.Rollback();
-        throw;
+        if (keys is null)
+            throw new ArgumentNullException(nameof(keys));
+
+        var rows = new List<(int PcfNum, string ItemNum)>();
+        foreach (var k in keys)
+        {
+            if (k is null)
+                continue;
+
+            var t = k.GetType();
+            var pcfProp = t.GetProperty("PCFNum") ?? t.GetProperty("PCFNumber") ?? t.GetProperty("PcfNum");
+            var itemProp = t.GetProperty("ItemNum");
+
+            if (pcfProp == null || itemProp == null)
+                throw new ArgumentException("Each key must include PCFNum (or PCFNumber) and ItemNum.");
+
+            var pcfVal = pcfProp.GetValue(k);
+            var itemVal = itemProp.GetValue(k);
+            if (pcfVal is null || itemVal is null)
+                continue;
+
+            rows.Add(((int)Convert.ChangeType(pcfVal, typeof(int)),
+                      (string)Convert.ChangeType(itemVal, typeof(string))));
+        }
+
+        if (rows.Count == 0)
+            return;
+
+        using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName);
+        if (connection.State != ConnectionState.Open)
+            connection.Open();
+        using var tx = connection.BeginTransaction();
+
+        try
+        {
+            var valuesSb = new StringBuilder();
+            var dp = new DynamicParameters();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = rows[i];
+                var pPcf = $"@pcf{i}";
+                var pItem = $"@item{i}";
+                if (valuesSb.Length > 0)
+                    valuesSb.Append(",");
+                valuesSb.Append($"({pPcf}, {pItem})");
+                dp.Add(pPcf, r.PcfNum, DbType.Int32);
+                dp.Add(pItem, r.ItemNum, DbType.String);
+            }
+
+            var sql = $@"
+DECLARE @Keys TABLE (PcfNum INT NOT NULL, ItemNum NVARCHAR(100) NOT NULL);
+INSERT INTO @Keys (PcfNum, ItemNum) VALUES {valuesSb};
+
+DELETE tgt
+FROM PcItemsDeleteLater AS tgt
+JOIN @Keys k
+  ON k.PcfNum = tgt.PcfNum
+ AND k.ItemNum = tgt.ItemNum;";
+
+            await connection.ExecuteAsync(sql, dp, tx, commandTimeout: 60);
+
+            tx.Commit();
+        }
+        catch
+        {
+            tx.Rollback();
+            throw;
+        }
     }
-}
 
 
-// Persist the "delete later" request for separate handling
-public Task MarkItemsForDeletionAsync(IEnumerable<object> laterRequests)
+
+
+
+
+
+
+
+
+    // Persist the "delete later" request for separate handling
+    public async Task MarkItemsForDeletionAsyncWithEditNotes(IEnumerable<object> laterRequests)  //Not used
+
     {
-        // Persist to a PCF_DeleteQueue (or a column on the detail row)
-        // Include who/when if you track audit
-        throw new NotImplementedException();
+
+        if (laterRequests is null) throw new ArgumentNullException(nameof(laterRequests));
+
+        // Normalize: accept objects with PCFNum/PCFNumber, ItemNum, Reason (optional)
+        var items = new List<(int PcfNum, string ItemNum, string Reason)>();
+        foreach (var r in laterRequests)
+        {
+            if (r is null) continue;
+
+            var t = r.GetType();
+            var pcfProp = t.GetProperty("PCFNum") ?? t.GetProperty("PCFNumber") ?? t.GetProperty("PcfNum");
+            var itemProp = t.GetProperty("ItemNum");
+            var reasonProp = t.GetProperty("Reason");
+
+            if (pcfProp == null || itemProp == null)
+                throw new ArgumentException("Each request must include PCFNum (or PCFNumber) and ItemNum.");
+
+            var pcfVal = pcfProp.GetValue(r);
+            var itemVal = itemProp.GetValue(r);
+            var reasonVal = reasonProp?.GetValue(r);
+
+            if (pcfVal is null || itemVal is null) continue;
+
+            var reason = Convert.ToString(reasonVal) ?? "Slow Sales";
+            if (string.IsNullOrWhiteSpace(reason)) reason = "Slow Sales";
+
+            items.Add(((int)Convert.ChangeType(pcfVal, typeof(int)),
+                (string)Convert.ChangeType(itemVal, typeof(string)),
+                reason));
+        }
+
+        if (items.Count == 0) return;
+
+        using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName);
+        if (connection.State != ConnectionState.Open) connection.Open();
+        using var tx = connection.BeginTransaction();
+
+        try
+        {
+            // Group by PCF to append one EditNotes line per PCF
+            var groups = items.GroupBy(x => x.PcfNum);
+
+            foreach (var grp in groups)
+            {
+                // Build a parameterized VALUES list for the @Keys table variable
+                var valuesSb = new StringBuilder();
+                var dp = new DynamicParameters();
+                int i = 0;
+
+                foreach (var row in grp)
+                {
+                    var pPcf = $"@pcf{i}";
+                    var pItem = $"@item{i}";
+                    var pReason = $"@reason{i}";
+
+                    if (valuesSb.Length > 0) valuesSb.Append(",");
+                    valuesSb.Append($"({pPcf}, {pItem}, {pReason})");
+
+                    dp.Add(pPcf, row.PcfNum, DbType.Int32);
+                    dp.Add(pItem, row.ItemNum, DbType.String);
+                    dp.Add(pReason, row.Reason, DbType.String);
+                    i++;
+                }
+
+                // Upsert into PcItemsDeleteLater, and then append EditNotes
+                var sql = $@"
+DECLARE @Keys TABLE (PcfNum INT NOT NULL, ItemNum NVARCHAR(100) NOT NULL, Reason NVARCHAR(200) NULL);
+INSERT INTO @Keys (PcfNum, ItemNum, Reason) VALUES {valuesSb};
+
+-- Upsert: insert new, update existing reason/date
+MERGE INTO PcItemsDeleteLater AS tgt
+USING (
+    SELECT k.PcfNum, k.ItemNum, COALESCE(NULLIF(k.Reason, ''), 'Slow Sales') AS Reason
+    FROM @Keys k
+) AS src
+ON (tgt.PcfNum = src.PcfNum AND tgt.ItemNum = src.ItemNum)
+WHEN MATCHED THEN
+    UPDATE SET
+        tgt.Reason    = src.Reason,
+        tgt.DateAdded = SYSDATETIME()
+WHEN NOT MATCHED THEN
+    INSERT (PcfNum, ItemNum, DateAdded, Reason)
+    VALUES (src.PcfNum, src.ItemNum, SYSDATETIME(), src.Reason);
+
+-- Return distinct list for note building (optional but handy if you want to SELECT back)
+";
+
+                await connection.ExecuteAsync(sql, dp, tx, commandTimeout: 60);
+
+// Append to ProgControl.EditNotes for this PCF
+                var itemList = string.Join(", ", grp.Select(g => g.ItemNum).Distinct());
+                var reasonForNote = grp.Select(g => g.Reason).Distinct().Count() == 1
+                    ? grp.First().Reason
+                    : "Multiple";
+
+                var stamp = DateTime.Now.ToString("yyyy-MM-dd");
+                var appendText = $"  {stamp} Queued items {itemList} for delete (reason: {reasonForNote})";
+
+                var updateNotesSql = @"
+UPDATE ProgControlTesting
+SET EditNotes = COALESCE(EditNotes, '') + @AppendText
+WHERE PCFNum = @PCFNum;"; // PCFNum is string in ProgControl
+
+                await connection.ExecuteAsync(updateNotesSql,
+                    new { AppendText = appendText, PCFNum = grp.Key.ToString() }, tx);
+            }
+
+            tx.Commit();
+        }
+        catch
+        {
+            tx.Rollback();
+            throw;
+        }
     }
 
 
-   
 
 }
 

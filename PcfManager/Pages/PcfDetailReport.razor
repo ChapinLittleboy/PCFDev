@@ -1,7 +1,10 @@
 ﻿@page "/pcf-detail-report"
 @using PcfManager.Models  @* Adjust to your actual namespace *@
 @using Syncfusion.Blazor.Grids
-@inject DataService DataService
+@using PcfManager.Services
+@using PcfManager.Services
+
+@inject PcfManager.Services.DataService DataSvc
 
 <PageTitle>PCF Program Details</PageTitle>
 
@@ -118,15 +121,33 @@
     private const string LayoutsStoreKey = "PcfsGridLayouts"; // change if you rename the grid
     private bool firstRender = true;
     //[Inject] public Blazored.LocalStorage.ILocalStorageService LocalStorage { get; set; }
+    private Dictionary<(int Pcf, string Item), bool> _originalDeleteLater = new();
+    private static (int Pcf, string Item) KeyOf(PCFDetail x)
+        => (x.PCFNum, (x.ItemNum ?? string.Empty).Trim());
 
     protected override async Task OnInitializedAsync()
     {
         
 
-        pcfDetails = await DataService.GetAllPCFDetailsWithQtyAsync();
+        pcfDetails = await DataSvc.GetAllPCFDetailsWithQtyAsync();
+        _originalDeleteLater = AggregateDeleteLater(pcfDetails);
         isLoading = false;
     }
- 
+    private static Dictionary<(int Pcf, string Item), bool>
+        AggregateDeleteLater(IEnumerable<PCFDetail> rows)
+    {
+        var dict = new Dictionary<(int Pcf, string Item), bool>();
+        foreach (var r in rows)
+        {
+            var key = KeyOf(r);
+            if (dict.TryGetValue(key, out var prev))
+                dict[key] = prev || r.DeleteLater;   // OR combine
+            else
+                dict[key] = r.DeleteLater;
+        }
+        return dict;
+    }
+
     private string GetPrivateLabelDisplay(object data, string columnName)
     {
         var item = data as PCFDetail;
@@ -175,25 +196,42 @@
         try
         {
             // Aggregate selections
-            var deleteNow = pcfDetails.Where(x => x.DeleteNow).ToList();
-            var deleteLater = pcfDetails.Where(x => x.DeleteLater).ToList();
+           // var deleteNow = pcfDetails.Where(x => x.DeleteNow).ToList();
+           // var deleteLater = pcfDetails.Where(x => x.DeleteLater).ToList();
+            var deleteNowRows = pcfDetails.Where(x => x.DeleteNow).ToList();
+            var currentLater = AggregateDeleteLater(pcfDetails);
+            bool WasLater((int Pcf, string Item) k)
+                => _originalDeleteLater.TryGetValue(k, out var was) && was;
+            bool IsLater((int Pcf, string Item) k)
+                => currentLater.TryGetValue(k, out var now) && now;
+            var newlyMarkedLater = currentLater
+                .Where(kv => kv.Value && !WasLater(kv.Key))         // false -> true (or not present -> true)
+                .Select(kv => new { PCFNum = kv.Key.Pcf, ItemNum = kv.Key.Item, Reason = "Slow Sales" })
+                .ToList();
+            var newlyUnmarkedLater = _originalDeleteLater
+                .Where(kv => kv.Value && !IsLater(kv.Key))          // true -> false (or missing now)
+                .Select(kv => new { PCFNum = kv.Key.Pcf, ItemNum = kv.Key.Item })
+                .ToList();
 
             // 1) Immediate deletes (remove from PCF)
-            if (deleteNow.Count > 0)
+            if (deleteNowRows.Count > 0)
             {
                 // Use the identifiers you need — example uses PCFNum + ItemNum as a composite key
-                var nowKeys = deleteNow.Select(x => new { x.PCFNum, x.ItemNum }).ToList();
-                //await DataService.RemoveItemsFromPCFAsync(nowKeys);
+                var nowKeys = deleteNowRows.Select(x => new { x.PCFNum, x.ItemNum }).ToList();
+                await DataSvc.RemoveItemsFromPCFAsync(nowKeys);
 
                 // Optionally reflect removal in the UI (remove rows)
                 pcfDetails.RemoveAll(r => r.DeleteNow);
+
+                foreach (var r in deleteNowRows)
+                    _originalDeleteLater.Remove((r.PCFNum, r.ItemNum));
             }
 
-            // 2) Persist "delete later" requests
-            if (deleteLater.Count > 0)
+            // 2) Apply: Mark later (only newly marked)
+            if (newlyMarkedLater.Count > 0)
             {
                
-
+                /*
                 var laterPayload = deleteLater.Select(x => new
                 {
                     x.PCFNum,
@@ -201,15 +239,32 @@
                     RequestedOnUtc = DateTime.Now,
                     Reason = "Sales marked for later removal" // optional
                 }).ToList();
+                */
 
-                await DataService.MarkItemsForDeletionAsync(laterPayload);
+                await DataSvc.MarkItemsForDeletionAsync(newlyMarkedLater);
 
-                // Clear the flags to show they've been saved
-                foreach (var r in pcfDetails.Where(r => r.DeleteLater))
-                    r.DeleteLater = false;
+                
+
+                // Update snapshot to reflect new true state
+                foreach (var nm in newlyMarkedLater)
+                    _originalDeleteLater[(nm.PCFNum, nm.ItemNum)] = true;
             }
 
-            statusMessage = BuildResultMessage(deleteNow.Count, deleteLater.Count);
+            //statusMessage = BuildResultMessage(deleteNow.Count, deleteLater.Count);
+
+            // E) Apply: Unmark later (only newly unmarked)
+            if (newlyUnmarkedLater.Count > 0)
+            {
+                await DataSvc.UnmarkItemsForDeletionAsync(newlyUnmarkedLater);
+                // Update snapshot to reflect new false state
+                foreach (var um in newlyUnmarkedLater)
+                    _originalDeleteLater[(um.PCFNum, um.ItemNum)] = false;
+            }
+
+            statusMessage = $"Deleted now: {deleteNowRows.Count}, newly marked later: {newlyMarkedLater.Count}, unmarked later: {newlyUnmarkedLater.Count}.";
+
+
+
         }
         catch (Exception ex)
         {

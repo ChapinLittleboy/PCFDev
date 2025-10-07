@@ -46,6 +46,7 @@ public class PCFItemDTO
         ? (ProposedPrice - StandardCost) / ProposedPrice
         : 0;
 
+    
 
     // Constructor
     public PCFItemDTO()
