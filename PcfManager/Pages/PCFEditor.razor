@@ -15,6 +15,12 @@
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment hostingEnvironment
 @inject ExportService ExportService
 @inject ILogger<PCFEditor> Logger
+@using Syncfusion.Blazor.Navigations   @* for ItemModel *@
+@using Syncfusion.Blazor.Popups     
+@using SelectionMode = Syncfusion.Blazor.DropDowns.SelectionMode
+@using Syncfusion.Blazor.SplitButtons
+@* for Dialog *@
+
 
 
 
@@ -127,7 +133,11 @@ else
             <DialogButton Content="Yes, send the emails!" IsPrimary="true" OnClick="EmailPdfAsync"></DialogButton>
             <DialogButton Content="No" IsPrimary="true" OnClick="CloseDialog"></DialogButton>
     </DialogButtons>
-</SfDialog>
+    </SfDialog>
+
+
+
+
 
 
 @if (isLoading)
@@ -476,85 +486,127 @@ else
                         <div class="section-head">PCF Items</div>
                     </HeaderTemplate>
 
-                    
+                   
 
-                        <div>
-                            <div class="row">
-                                <div class="e-mastertext">Click the switch to toggle visibility</div>
-                                <div class="toggles">
+                    <div>
+                        
+                        <!--
+                        <div class="row">
+                            <div class="e-mastertext">Click the switch to toggle visibility</div>
+                            <div class="toggles">
                                 <div class="toggle">
                                     <label class="showhide">Item Description</label>
                                     <SfSwitch ValueChange="@((Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args) => { change("ItemDesc", args); })"
-                                              @bind-Checked="@Check" TChecked="bool" />
+                                              @bind-Checked="@Check)" TChecked="bool"/>
                                 </div>
 
                                 <div class="toggle">
                                     <label class="showhide">Item Status</label>
                                     <SfSwitch ValueChange="@((Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args) => { change("ItemStatus", args); })"
-                                              @bind-Checked="@Check1" TChecked="bool" />
+                                              @bind-Checked="@Check1" TChecked="bool"/>
                                 </div>
 
                                 <div class="toggle">
                                     <label class="showhide">12k Price</label>
                                     <SfSwitch ValueChange="@((Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args) => { change("PP2Price", args); })"
-                                              @bind-Checked="@Check2" TChecked="bool" />
+                                              @bind-Checked="@Check2" TChecked="bool"/>
                                 </div>
                                 <div class="toggle">
                                     <label class="showhide">FOB</label>
                                     <SfSwitch ValueChange="@((Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args) => { change("FOBPrice", args); })"
-                                              @bind-Checked="@Check3" TChecked="bool" />
+                                              @bind-Checked="@Check3" TChecked="bool"/>
                                 </div>
                                 <div class="toggle">
                                     <label class="showhide">Family Code</label>
                                     <SfSwitch ValueChange="@((Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args) => { change("Family_Code", args); })"
-                                              @bind-Checked="@Check4" TChecked="bool" />
+                                              @bind-Checked="@Check4" TChecked="bool"/>
                                 </div>
                             </div>
-
-                            </div>
-                            <SfGrid @ref="Grid" DataSource="@phDTO.PCFLines" ID="MyGrid"
-                                    AllowResizing="true" AllowExcelExport="true" Height="400"
-                                    AllowTextWrap="true" AllowReordering="true" ShowColumnChooser="false"
-                                    EnablePersistence="false"
-                                    Toolbar="@ToolbarItems"
-                                    EnableStickyHeader="true">
-                                
-                                <GridTextWrapSettings WrapMode="WrapMode.Header"/>
-                                <GridEvents OnToolbarClick="ToolbarClick" QueryCellInfo="OnQueryCellInfo" OnActionComplete="OnCellEdit" TValue="PCFItemDTO"></GridEvents>
-
-                                <GridColumns>
-                                    <GridColumn Field="ItemNum" HeaderText="Item Number" Width="125" TextAlign="TextAlign.Left" Freeze="FreezeDirection.Left" IsFrozen="true"></GridColumn>
-                                    <GridColumn Field="ItemDesc" HeaderText="Description" Width="350" TextAlign="TextAlign.Left" AllowEditing="false"></GridColumn>
-                                    <GridColumn Field="ItemStatus" HeaderText="Item Status" Width="100" TextAlign="TextAlign.Center">
-
-                                    </GridColumn>
-                                    <GridColumn Field="ProposedPrice" HeaderText="Accepted Price" Width="150" TextAlign="TextAlign.Right" Format="N2" EditType="EditType.NumericEdit"></GridColumn>
-                                    <GridColumn Field="Margin" HeaderText="Margin" Width="120"
-                                                TextAlign="TextAlign.Right" Format="P2" AllowEditing="false">
-                                    </GridColumn>
-                                    <GridColumn Field="PP1Price" HeaderText="$4k Price (PP1)" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
-                                    <GridColumn HeaderText="Pct to 4k" Width="75" TextAlign="TextAlign.Right" Template="@PercentageTemplate"/>
-                                    <GridColumn Field="PP2Price" HeaderText="$12.5k Price (PP2)" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
-                                    <GridColumn Field="FOBPrice" HeaderText="FOB Price" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
-                                    <GridColumn Field="Family_Code" HeaderText="Family Code" Width="150" TextAlign="TextAlign.Left" AllowEditing="false"></GridColumn>
-
-                                    <GridColumn Field="CurrentFYSales" HeaderText="@($"{CurrentFYHeader} Sales")" Width="150"
-                                                TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
-                                    <GridColumn Field="CurrentFYUnits" HeaderText="@($"{CurrentFYHeader} Units")" Width="150"
-                                                TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
-
-                                    <GridColumn Field="Prior1FYSales" HeaderText="@($"{Prior1FYHeader} Sales")" Width="150"
-                                                TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
-                                    <GridColumn Field="Prior1FYUnits" HeaderText="@($"{Prior1FYHeader} Units")" Width="150"
-                                                TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
-
-                                    <GridColumn Field="Prior2FYSales" HeaderText="@($"{Prior2FYHeader} Sales")" Width="150"
-                                                TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
-                                    <GridColumn Field="Prior2FYUnits" HeaderText="@($"{Prior2FYHeader} Units")" Width="150"
-                                                TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
-                                </GridColumns>
-                            </SfGrid>
                         </div>
+                    
+                        <div class="toggles">
+                        @foreach (var c in Columns)
+                        {
+                            
+                                <div class="toggle-container small-switch"> @* <-- ADDED A CSS CLASS HERE *@
+                                    <label class="showhide">@c.HeaderText</label>
+        
+                                    <SfSwitch ValueChange="@((args) => OnSwitchChange(c.Field, args))"
+                                              @bind-Checked="@selected[c.Field]"
+                                              TChecked="bool" />
+                                </div>
+
+                        }
+                        </div>
+                    -->
+
+                        <!-- Column toggles -->
+                        <div class="col-toggle-wrap">
+                            <div class="col row-head">Columns</div>
+
+                            <SfButtonGroup Mode="Syncfusion.Blazor.SplitButtons.SelectionMode.Multiple" CssClass="col-toggles">
+                                @foreach (var c in Columns)
+                                {
+                                    <ButtonGroupButton
+                                        Selected="@(selected[c.Field])"
+                                        SelectedChanged="@(v => ToggleColumnAsync(c.Field, v))"
+                                        CssClass="@(selected[c.Field] ? "e-success col-toggle" : "e-danger col-toggle")"
+                                        aria-label="@c.HeaderText">
+                                        @c.HeaderText
+                                    </ButtonGroupButton>
+                                }
+                            </SfButtonGroup>
+
+                            <div class="quick-actions">
+                            <SfButton Type="Button" CssClass="e-flat" OnClick="SelectAll">All</SfButton>
+                            <SfButton Type="Button" CssClass="e-flat" OnClick="SelectNone">None</SfButton>
+                                <SfButton Type="Button"  CssClass="e-flat" OnClick="Invert">Invert</SfButton>
+                            </div>
+                        </div>
+
+                        <SfGrid @ref="Grid" DataSource="@phDTO.PCFLines" ID="MyGrid"
+                                AllowResizing="true" AllowExcelExport="true" Height="400"
+                                AllowTextWrap="true" AllowReordering="true" ShowColumnChooser="false"
+                                EnablePersistence="false"
+                                Toolbar="@ToolbarItems"
+                                EnableStickyHeader="true">
+
+                            <GridTextWrapSettings WrapMode="WrapMode.Header"/>
+                            <GridEvents Created="OnGridCreated" OnToolbarClick="ToolbarClick" QueryCellInfo="OnQueryCellInfo" OnActionComplete="OnCellEdit" TValue="PCFItemDTO"></GridEvents>
+                         
+                            <GridColumns>
+                                <GridColumn Field="ItemNum" HeaderText="Item Number" Width="125" TextAlign="TextAlign.Left" Freeze="FreezeDirection.Left" IsFrozen="true"></GridColumn>
+                                <GridColumn Field="ItemDesc" HeaderText="Description" Width="350" TextAlign="TextAlign.Left" AllowEditing="false"></GridColumn>
+                                <GridColumn Field="ItemStatus" HeaderText="Item Status" Width="100" TextAlign="TextAlign.Center">
+
+                                </GridColumn>
+                                <GridColumn Field="ProposedPrice" HeaderText="Accepted Price" Width="150" TextAlign="TextAlign.Right" Format="N2" EditType="EditType.NumericEdit"></GridColumn>
+                                <GridColumn Field="Margin" HeaderText="Margin" Width="120"
+                                            TextAlign="TextAlign.Right" Format="P2" AllowEditing="false">
+                                </GridColumn>
+                                <GridColumn Field="PP1Price" HeaderText="$4k Price (PP1)" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                <GridColumn HeaderText="Pct to 4k" Width="75" TextAlign="TextAlign.Right" Template="@PercentageTemplate"/>
+                                <GridColumn Field="PP2Price" HeaderText="$12.5k Price (PP2)" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                <GridColumn Field="FOBPrice" HeaderText="FOB Price" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                <GridColumn Field="Family_Code" HeaderText="Family Code" Width="150" TextAlign="TextAlign.Left" AllowEditing="false"></GridColumn>
+
+                                <GridColumn Field="CurrentFYSales" HeaderText="@($"{CurrentFYHeader} Sales")" Width="150" 
+                                            TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                <GridColumn Field="CurrentFYUnits" HeaderText="@($"{CurrentFYHeader} Units")" Width="150"
+                                            TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
+
+                                <GridColumn Field="Prior1FYSales" HeaderText="@($"{Prior1FYHeader} Sales")" Width="150"
+                                            TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                <GridColumn Field="Prior1FYUnits" HeaderText="@($"{Prior1FYHeader} Units")" Width="150"
+                                            TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
+
+                                <GridColumn Field="Prior2FYSales" HeaderText="@($"{Prior2FYHeader} Sales")" Width="150"
+                                            TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                <GridColumn Field="Prior2FYUnits" HeaderText="@($"{Prior2FYHeader} Units")" Width="150"
+                                            TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
+                            </GridColumns>
+                        </SfGrid>
+                    </div>
                    
                     <!-- <p><span class="highlight">Note:Yellow highlighted prices are lower than the $4k price</span> </p> -->
                 </FormTemplate>
@@ -590,18 +642,10 @@ else
 
 
 <style>
-    .toggles {
-        display: flex;
-        flex-wrap: wrap;     /* keep them on one line? remove this */
-        gap: 12px 24px;      /* row/column spacing */
-        align-items: center;
-    }
 
-    .toggle {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;            /* space between label and switch */
-    }
+    .toggles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .4rem .8rem; }
+    .toggle  { display: flex; align-items: center; justify-content: space-between; }
+    .toggle .showhide { font-size: .9rem; margin-right: .5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
     .showhid
     .highlight {
@@ -674,7 +718,54 @@ else
         
         padding-inline: 6px; /* adds left & right space */
     }
-   
+    .bg-icons {
+        font-family: 'e-bg-icons' !important;
+        speak: none;
+        font-size: 14px;
+        font-style: normal;
+        font-weight: normal;
+        font-variant: normal;
+        text-transform: none;
+        line-height: 1;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+    .e-btngrp-watch::before {
+        content: '\e71b';
+    }
+    .e-btngrp-star::before {
+        content: '\e710';
+    }
+    .e-btngrp-download::before {
+        content: '\e712';
+    }
+    .e-btngrp-bold::before {
+        content: '\e71a'
+    }
+    .e-btngrp-italic::before {
+        content: '\e708';
+    }
+    .e-btngrp-underline::before {
+        content: '\e703';
+    }
+    .button-group-section {
+        width: 320px;
+        margin: 0 auto;
+        margin-top: 1.7%;
+        margin-bottom: 1.7%;
+    }
+    .e-bigger .button-group-section {
+        width: 350px;
+    }
+    .button-group-section .row {
+        margin: 0 0 30px 0;
+    }
+    .button-group-section .row:last-child {
+        margin-bottom: 0;
+    }
+    .button-group-section .row .p:first-child {
+        margin-top: 0;
+    }
     .worksheet-header-row {
         display: flex;
         align-items: center;
@@ -693,7 +784,31 @@ else
     .worksheet-header-spacer {
         flex: 1;
     }
+    /* Make the whole button group wrap onto multiple lines */
+    .col-toggles.e-btn-group {
+        display: flex;           /* ensure flex, not inline-flex */
+        flex-wrap: wrap !important;   /* Syncfusion sets nowrap; override it */
+        gap: .4rem .6rem;        /* space between buttons (row x column) */
+        width: 80%;             /* let it use the row width */
+        justify-content: flex-start;
+    }
+
+    /* Keep each button sized to its content (no squish) */
+    .col-toggles .e-btn {
+        flex: 0 0 auto;
+    }
+    .col-toggles .e-btn.col-toggle { border-radius: 9999px; padding: .35rem .65rem; }
+
+    .col-toggles .e-btn.e-success.e-active { background-color: #198754; color: #fff; }
+    .col-toggles .e-btn.e-danger.e-active  { background-color: #dc3545; color: #fff; }
+
+    /* Optional softer look when not active (selected state already flips the class) */
+    .col-toggles .e-btn.e-success:not(.e-active) { background: #eaf6ed; color:#0f5132; }
+    .col-toggles .e-btn.e-danger:not(.e-active)  { background: #fcebea; color:#842029; }
+    .quick-actions { margin-top: .5rem; display: flex; gap: .5rem; }
     body { }
+  
+
 </style>
 
 @code {
@@ -741,6 +856,7 @@ else
     private bool isDescriptionVisible = true;
     private string ButtonText => isDescriptionVisible ? "Hide Description" : "Show Description";
 
+    private SfListBox<string, ColumnItem> ListBoxRef;
     
     private SfDialog ProgramDialog;
 
@@ -764,17 +880,40 @@ else
     public int FormGroupColumn = 1;
     public int FormColumn = 1;
     private bool detailsVisible = true;
+    private bool chooserOpen;
+    private string searchText = "";
+    private List<string> selectedFields = new();
+    private List<ColumnItem> Columns;
 
-    private List<object> ToolbarItems = new()
+    private static int FiscalYearEndYear(DateTime asOf)
+        => asOf.Month >= 9 ? asOf.Year + 1 : asOf.Year;
+
+ 
+    private Dictionary<string,bool> selected = new(StringComparer.OrdinalIgnoreCase);
+
+    public List<object> ToolbarItems = new()
     {
-        "ExcelExport"
+        
+        "ExcelExport" // built-in export button
+    
     };
     private void MarkAsDirty()
     {
         HasUnsavedChanges = true;
     }
-
-
+    public record ColumnItem(string Field, string HeaderText);
+    private async Task Invert()
+    {
+        var toShow = new List<string>();
+        var toHide = new List<string>();
+        foreach (var c in Columns)
+        {
+            selected[c.Field] = !selected[c.Field];
+            if (selected[c.Field]) toShow.Add(c.Field); else toHide.Add(c.Field);
+        }
+        if (toHide.Count > 0) await Grid.HideColumns(toHide.ToArray());
+        if (toShow.Count > 0) await Grid.ShowColumns(toShow.ToArray());
+    }
     private async Task LoadCustomerProgramsAsync()
     {
         if (!string.IsNullOrEmpty(phDTO.CustomerNumber))
@@ -785,7 +924,23 @@ else
 
     }
 
+    private async Task OpenChooserAsync()
+    {
+        var selected = new List<string>();
+        foreach (var ci in Columns)
+        {
+            // Use whichever exists in your version:
+             var col = await Grid.GetColumnByFieldAsync(ci.Field);
+            //var col = await Grid.GetColumnByField(ci.Field);
 
+            if (col?.Visible != false)
+                selected.Add(ci.Field);
+        }
+        selectedFields = selected;
+        chooserOpen = true;
+        StateHasChanged();
+    }
+ 
     private string GetCmaFileLink()
     {
         string basePath = Configuration["FilePathSettings:CmaArchivePath"];
@@ -824,6 +979,43 @@ else
         //new KeyValuePair<string, string>("PLO", "Private Label and Other"),
         //new KeyValuePair<string, string>("N", "Ningbo"),
     };
+
+    protected override void OnInitialized()
+    {
+        // Seed every key so the foreach can render safely
+        var fy = FiscalYearEndYear(DateTime.Now);
+        Columns = new()
+        {
+            new("ItemDesc", "Item Description"),
+            new("ItemStatus", "Item Status"),
+            new("ProposedPrice", "Accepted Price"),
+            new("Margin", "Margin"),
+            new("PP1Price", "$4K Price (PP1)"),
+            new("Pct to 4k", "Pct to 4k"),
+            new("PP2Price", "$12.5k Price (PP2)"),
+            new("FOBPrice", "FOB"),
+            new("Family_Code", "Family Code"),
+
+            // Dynamic FY labels (current + prior years)
+            new("CurrentFYSales", $"FY{fy} Sales"),
+            new("CurrentFYUnits", $"FY{fy} Units"),
+
+            new("Prior1FYSales", $"FY{fy - 1} Sales"),
+            new("Prior1FYUnits", $"FY{fy - 1} Units"),
+
+            new("Prior2FYSales", $"FY{fy - 2} Sales"),
+            new("Prior2FYUnits", $"FY{fy - 2} Units"),
+        };
+    
+
+        foreach (var c in Columns)
+            selected[c.Field] = true;   // or false, your default
+
+
+
+    }
+
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -865,9 +1057,38 @@ else
             // await ((Syncfusion.Blazor.DataForm.SfDataForm)MyForm).Validate();
 
             StateHasChanged();
+
+            if (!firstRender) return;
+
+            // Now sync with the actual grid column visibilities
+         
         }
     }
+    private async Task OnGridCreated()
+    {
+        // Grid is definitely non-null here
+        foreach (var c in Columns)
+        {
+            var col = await Grid.GetColumnByField(c.Field); // or GetColumnByFieldAsync in your version
+            selected[c.Field] = col?.Visible ?? true;
+        }
+        StateHasChanged();
+    }
 
+   
+    private async Task SelectAll()
+    {
+        var fields = Columns.Select(c => c.Field).ToArray();
+        foreach (var f in fields) selected[f] = true;
+        await Grid.ShowColumns(fields);
+    }
+
+    private async Task SelectNone()
+    {
+        var fields = Columns.Select(c => c.Field).ToArray();
+        foreach (var f in fields) selected[f] = false;
+        await Grid.HideColumns(fields);
+    }
     private async Task LoadDataAsync() 
     {
         PcfNumberString = pcfNumber.ToString();
@@ -957,6 +1178,13 @@ else
         {
             await ExportSinglePcf();
         }
+        // Open your column chooser dialog
+        if (args.Item.Id.EndsWith("Columns", StringComparison.Ordinal))
+        {
+            await OpenChooserAsync(); // your existing method that shows the dialog
+        }
+
+
     }
     // Data Loading
     public async Task UpdatePCFHeaderDTOAsync(PCFHeaderDTO phDto, string custNum, int currentPcfNum)
@@ -1464,6 +1692,92 @@ else
                 this.Grid.HideColumnAsync(name, "Field");
             }
         }
+        StateHasChanged();
+    }
+    void OnSearch(InputEventArgs args) => searchText = args?.Value?.ToString() ?? "";
+
+
+
+    async Task Apply()
+    {
+        // Compute diffs and call Show/Hide only where needed
+        var all = Columns.Select(c => c.Field).ToArray();
+        var toShow = selectedFields.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var hide = all.Where(f => !toShow.Contains(f)).ToArray();
+        var show = all.Where(f => toShow.Contains(f)).ToArray();
+
+        if (hide.Length > 0) await Grid.HideColumns(hide);
+        if (show.Length > 0) await Grid.ShowColumns(show);
+
+        chooserOpen = false;
+       // await SavePrefs(); // optional persistence (see below)
+        StateHasChanged();
+    }
+    private IEnumerable<ColumnItem> FilteredColumns =>
+        string.IsNullOrWhiteSpace(searchText)
+            ? Columns
+            : Columns.Where(c => c.HeaderText.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+
+    public string ButtonContent { get; set; } = "ItemDesc";
+    public string ButtonIconClass { get; set; } = "e-btn-sb-icons e-play-icon";
+
+    private async Task HandleButtonClick(string field)
+    {
+        Console.WriteLine($"Button with identifier '{field}' was pressed.");
+        bool isCurrentlyVisible = selected[field];
+
+        // Use buttonIdentifier in a switch or if/else block
+        if (isCurrentlyVisible)
+        {
+            await Grid.HideColumnAsync(field, "Field");
+            selected[field] = false;
+        }
+        else
+        {
+            await Grid.ShowColumnAsync(field, "Field");
+            selected[field] = true;
+        }
+        StateHasChanged();
+    }
+    private async Task OnSwitchChange(string field, Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args)
+    {
+        // 'args.Checked' already gives you the new state (true for visible, false for hidden)
+        bool isVisible = args.Checked;
+
+        // The @bind-Checked already updated ColumnVisibilityState[field]
+
+        if (isVisible)
+        {
+            await Grid.ShowColumns(new[] { field , "Field"});
+            Console.WriteLine($"Shown column: {field}");
+        }
+        else
+        {
+            await Grid.HideColumns(new[] { field, "Field" });
+            Console.WriteLine($"Hidden column: {field}");
+        }
+    }
+  
+    // Instant apply per button
+    private async Task ToggleColumnAsync(string field, bool isSelected)
+    {
+        if (field == "Pct to 4k")
+        {
+            selected[field] = isSelected;
+            if (isSelected)
+                await Grid.ShowColumns(field , "HeaderText");
+            else
+                await Grid.HideColumns(field , "HeaderText");
+        }
+        else
+        {
+            selected[field] = isSelected;
+            if (isSelected)
+                await Grid.ShowColumns(field, "Field");
+            else
+                await Grid.HideColumns(field, "Field");
+        }
+
         StateHasChanged();
     }
 }
