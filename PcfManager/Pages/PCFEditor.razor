@@ -557,11 +557,7 @@ else
                                 }
                             </SfButtonGroup>
 
-                            <div class="quick-actions">
-                            <SfButton Type="Button" CssClass="e-flat" OnClick="SelectAll">All</SfButton>
-                            <SfButton Type="Button" CssClass="e-flat" OnClick="SelectNone">None</SfButton>
-                                <SfButton Type="Button"  CssClass="e-flat" OnClick="Invert">Invert</SfButton>
-                            </div>
+                            
                         </div>
 
                         <SfGrid @ref="Grid" DataSource="@phDTO.PCFLines" ID="MyGrid"
@@ -937,7 +933,7 @@ else
                 selected.Add(ci.Field);
         }
         selectedFields = selected;
-        chooserOpen = true;
+        //chooserOpen = true;  
         StateHasChanged();
     }
  
@@ -1484,8 +1480,9 @@ else
 
     private async Task ExportSinglePcf()
     {
+        await OpenChooserAsync();  // doesn't open anything, just updates the selectedFields list
         var excelGenerator = new ExcelGenerator(DataService, UserService, RepRepository, CustomerService);
-        var excelBytes = await ExcelGenerator.ExportPcfToExcel(phDTO);
+        var excelBytes = await ExcelGenerator.ExportPcfToExcel(phDTO, selectedFields);
 
         //await FileUtils.DownloadFileFromByteArrayAsync("PCF_Header.xlsx", excelBytes, 
         //    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", JS);
