@@ -34,6 +34,7 @@ public class PCFDetail
         public string? EUT { get; set; }
         public bool DeleteNow { get; set; }
         public bool DeleteLater { get; set; } // not in DB, used in UI to mark for deletion
+        public string? CorpCustNum { get; set; }
 
     public decimal FY2023_Qty { get; set; }
         public decimal FY2024_Qty { get; set; }

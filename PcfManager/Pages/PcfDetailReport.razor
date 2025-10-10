@@ -1,14 +1,19 @@
 ﻿@page "/pcf-detail-report"
-@using PcfManager.Models  @* Adjust to your actual namespace *@
+@using PcfManager.Models  
 @using Syncfusion.Blazor.Grids
 @using PcfManager.Services
 @using PcfManager.Services
+@using Syncfusion.Blazor.SplitButtons
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.Navigations 
+@using ChangeEventArgs = Microsoft.AspNetCore.Components.ChangeEventArgs
 
 @inject PcfManager.Services.DataService DataSvc
+@inject IJSRuntime JS
 
-<PageTitle>PCF Program Details</PageTitle>
+<PageTitle>PCF Detail Report</PageTitle>
 
-<h3>PCF Program Details</h3>
+<h3>PCF Detail Report</h3>
 <div>
     <div class="active-filters">
         <button @onclick="ClearFilters">Clear Filters</button>
@@ -21,8 +26,15 @@
     </div>
 
 </div>
+<!-- Column toggles -->
+<SfButton style="margin-bottom:5px" OnClick="Show" CssClass="e-outline" Content="Open column chooser"></SfButton>
+<!-- Blazor Server: Pages/_Host.cshtml  |  WASM: wwwroot/index.html -->
+
+
+
 <SfGrid ID="PcfsDetGrid" @ref="MyDetGrid" DataSource="@pcfDetails" AllowSorting="true" AllowPaging="true" AllowFiltering="true"
-        AllowExcelExport="true" Toolbar="@(new string[] { "ExcelExport", "ColumnChooser" })"
+        AllowExcelExport="true" 
+        Toolbar="ToolbarItems"
         AllowReordering="true" AllowResizing="true"
         AllowTextWrap="true"
         EnablePersistence="true"
@@ -31,14 +43,15 @@
     <GridTextWrapSettings WrapMode="WrapMode.Header" />
     <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel"></GridFilterSettings>
     <GridEvents OnToolbarClick="ToolbarClickHandler" TValue="PCFDetail"></GridEvents>
-    <GridPageSettings PageSize="20" PageSizes="@(new string[] { "20", "50", "100", "All" })"></GridPageSettings>
+    <GridPageSettings PageSize="1000" PageSizes="@(new string[] { "20", "50", "100", "All" })"></GridPageSettings>
     <GridColumns>
         <GridColumn Field="PCFNum" HeaderText="PCF #" TextAlign="TextAlign.Center" Width="100" Type="ColumnType.Number" />
         <GridColumn Field="CustomerNumber" HeaderText="Customer #" Width="120" />
         <GridColumn Field="CustomerName" HeaderText="Customer Name" Width="200" />
+        <GridColumn Field="CorpCustNum" HeaderText="Corp Cust Number" Width="120" />
         <GridColumn Field="StartDate" HeaderText="Start Date" Format="d" Type="ColumnType.Date" Width="120" />
         <GridColumn Field="EndDate" HeaderText="End Date" Format="d" Type="ColumnType.Date" Width="120" />
-        <GridColumn Field="PCFStatus" HeaderText="Status" TextAlign="TextAlign.Center" Width="100" />
+        <GridColumn Field="PCFStatus" HeaderText="PCF Status" TextAlign="TextAlign.Center" Width="100" />
         <GridColumn Field="PcfType" HeaderText="Type" Width="100" />
         <GridColumn Field="ItemNum" HeaderText="Item #" Width="120" />
         <GridColumn Field="ItemDesc" HeaderText="Item Description" Width="200" />
@@ -125,14 +138,380 @@
     private static (int Pcf, string Item) KeyOf(PCFDetail x)
         => (x.PCFNum, (x.ItemNum ?? string.Empty).Trim());
 
+    private List<string> selectedFields = new();
+    public record ColumnItem(string Field, string HeaderText);
+    private List<ColumnItem> Columns;
+    private static int FiscalYearEndYear(DateTime asOf)
+        => asOf.Month >= 9 ? asOf.Year + 1 : asOf.Year;
+    private Dictionary<string,bool> selected = new(StringComparer.OrdinalIgnoreCase);
+    public List<object> ToolbarItems = default!;
+
+    public void Show()
+    {
+        MyDetGrid.OpenColumnChooserAsync(100, 40);
+    }
+
+
+
+
     protected override async Task OnInitializedAsync()
     {
 
+        var fy = FiscalYearEndYear(DateTime.Now);
+        Columns = new()
+        {
+            new("ItemDesc", "Item Description"),
+            new("ItemStatus", "Item Status"),
+            new("ProposedPrice", "Accepted Price"),
+            new("Margin", "Margin"),
+            new("PP1Price", "$4K Price (PP1)"),
+            new("Pct to 4k", "Pct to 4k"),
+            new("PP2Price", "$12.5k Price (PP2)"),
+            new("FOBPrice", "FOB"),
+            new("Family_Code", "Family Code"),
 
+            // Dynamic FY labels (current + prior years)
+            new("CurrentFYSales", $"FY{fy} Sales"),
+            new("CurrentFYUnits", $"FY{fy} Units"),
+
+            new("Prior1FYSales", $"FY{fy - 1} Sales"),
+            new("Prior1FYUnits", $"FY{fy - 1} Units"),
+
+            new("Prior2FYSales", $"FY{fy - 2} Sales"),
+            new("Prior2FYUnits", $"FY{fy - 2} Units"),
+        };
+
+        foreach (var c in Columns)
+            selected[c.Field] = true;   // or false, your default
+
+        ToolbarItems = new()
+        {
+            //"ExcelExport",                         // built-in item
+            new ToolbarItem { Template = CustomButton } // your custom template
+        };
         pcfDetails = await DataSvc.GetAllPCFDetailsWithQtyAsync();
         _originalDeleteLater = AggregateDeleteLater(pcfDetails);
         isLoading = false;
     }
+
+    public const string PasteIconCss = "e-btn-icons e-paste";
+    public const string PasteSpecialIconCss = "e-btn-icons e-paste-special";
+    public const string PasteAsFormulaIconCss = "e-btn-icons e-paste-formula";
+    public const string PasteAsHyperlinkIconCss = "e-btn-icons e-paste-hyperlink";
+    private string Current = "gridExport";  
+   private SfSplitButton SplitBtn = default!;
+
+    private RenderFragment CustomButton => @<SfSplitButton @ref="SplitBtn" CssClass="e-flat" Content="Export Excel">
+                                               <SplitButtonEvents Clicked="OnPrimaryClicked"
+                                                                  ItemSelected="OnItemSelected" />
+                                               <DropDownMenuItems>
+                                                   <DropDownMenuItem Id="gridExport" Text="Export Grid as Shown" IconCss="@PasteIconCss"></DropDownMenuItem>
+                                                   <DropDownMenuItem Id="reviewExport" Text="Export in Review Format" IconCss="@PasteSpecialIconCss"></DropDownMenuItem>
+
+                                               </DropDownMenuItems>
+                                           </SfSplitButton>
+    ;
+
+    private async Task OnGridCreated()
+    {
+        // Grid is definitely non-null here
+        foreach (var c in Columns)
+        {
+            var col = await MyDetGrid.GetColumnByField(c.Field); // or GetColumnByFieldAsync in your version
+            selected[c.Field] = col?.Visible ?? true;
+        }
+        StateHasChanged();
+    }
+    private Task OnPrimaryClicked(Syncfusion.Blazor.SplitButtons.ClickEventArgs _)
+    {
+        if (Current == "gridExport")
+            return gridExport();
+        else
+        {
+            return ExportReviewFormat();
+        }
+    }
+    private string PrimaryLabel => Current switch
+    {
+        "gridExport" => "Export Grid as Shown",
+        "reviewExport" => "Export in Review Format)",
+        _      => "Export"
+    };
+    private async Task OnItemSelected(Syncfusion.Blazor.SplitButtons.MenuEventArgs args)
+    {
+        Current = args.Item.Id;        // make the chosen item the new default
+        // Optionally kick it off right away:
+        if (args.Item.Id == "gridExport") 
+        {
+            await gridExport();
+        }
+        else if (args.Item.Id == "reviewExport") await ExportReviewFormat();
+
+        // Update the main button label
+        // (Content is a settable property; using @ref lets us update it)
+        SplitBtn.Content = PrimaryLabel;
+
+        StateHasChanged();
+    }
+
+    private async Task gridExport()
+    {
+        var ExcelFileName = $"PCFReport.xlsx";
+        ExcelExportProperties exportProperties = new ExcelExportProperties
+        {
+            FileName = ExcelFileName
+        };
+        await this.MyDetGrid.ExportToExcelAsync(exportProperties);
+    }
+    private async Task ExportReviewFormat()
+    {
+        var ExcelFileName = $"PCFReviews.xlsx";
+        ExcelExportProperties exportProperties = new ExcelExportProperties
+        {
+            FileName = ExcelFileName
+        };
+        var originalPageSize = MyDetGrid.PageSettings?.PageSize ?? 20;
+        MyDetGrid.PageSettings.PageSize = int.MaxValue;
+        StateHasChanged();
+        var viewObjects = await MyDetGrid.GetCurrentViewRecordsAsync();
+        MyDetGrid.PageSettings.PageSize = originalPageSize;
+
+        var filtered = viewObjects
+            .OfType<PCFDetail>()
+            .ToList();
+
+        // await MyDetGrid.UngroupColumnAsync("PCFNum"); ;
+        // await MyDetGrid.UngroupColumnAsync("CorpCustNum"); ;
+        // await MyDetGrid.UngroupColumnAsync("CustomerNumber"); ;
+        // await MyDetGrid.UngroupColumnAsync("CustomerName"); ;
+        // var filteredRecords = await MyDetGrid.GetFilteredRecordsAsync();
+
+        if (filtered.Count == 0)
+        {
+            // nothing to export
+            await JS.InvokeVoidAsync("alert", "No filtered rows to export.");
+            return;
+        }
+
+        // 2) Decide which columns belong in header vs detail
+        //    (Tune these to your exact taste/business rules)
+        var headerFields = new (string Label, Func<PCFDetail, object?> Value)[]
+        {
+            ("PCF #",              x => x.PCFNum),
+            ("Customer #",         x => x.CustomerNumber),
+            ("Customer Name",      x => x.CustomerName),
+            ("Corp Cust Number",   x => x.CorpCustNum),
+            ("Start Date",         x => x.StartDate),
+            ("End Date",           x => x.EndDate),
+            ("PCF Status",         x => x.PCFStatus),
+            ("Type",               x => x.PcfType),
+            ("Buying Group",       x => x.BuyingGroup),
+            ("Sales Manager",      x => x.SalesManager),
+            // ("VP Sales Date",      x => x.VPSalesDate),
+            ("Bill To Address",    x => x.BillToAddress),
+            ("City",               x => x.BillToCity),
+            ("State",              x => x.BTState),
+            ("ZIP",                x => x.BTZip),
+            // ("Payment Terms",      x => x.PromoPaymentTermsText),
+            // ("Freight Terms",      x => x.PromoFreightTerms),
+            // ("Freight Min.",       x => x.FreightMinimums),
+            ("Notes",              x => x.GeneralNotes),
+        };
+
+        var detailColumns = new (string Header, Func<PCFDetail, object?> Value, bool RightAlign, string? Format)[]
+        {
+            ("Item #",            x => x.ItemNum,              false, null),
+            ("Item Description",  x => x.ItemDesc,             false, null),
+            ("Item Status",       x => x.ItemStatus,           false, null),
+            ("Private Label",     x => x.PrivateLabelFlag,     false, null),
+            //("Cust #",            x => x.CustNum,              false, null),
+           // ("EUT",               x => x.EUT,                  false, null),
+           // ("PCF Number (Item)", x => x.PCFNumber,            false, null),
+
+            ("FY23 Qty",          x => x.FY2023_Qty,           true,  "0"),
+            ("FY24 Qty",          x => x.FY2024_Qty,           true,  "0"),
+            ("FY25 Qty",          x => x.FY2025_Qty,           true,  "0"),
+            ("FY26 Qty",          x => x.FY2026_Qty,           true,  "0"),
+        };
+
+        // 3) Build the Excel
+        byte[] bytes;
+
+        using (var excelEngine = new Syncfusion.XlsIO.ExcelEngine())
+        {
+            var application = excelEngine.Excel;
+            application.DefaultVersion = Syncfusion.XlsIO.ExcelVersion.Xlsx;
+
+            var workbook = application.Workbooks.Create(1);
+            var ws = workbook.Worksheets[0];
+            ws.Name = "PCF Export";
+
+            int row = 1;
+
+            // Optional: a big title on top
+            ws.Range["A" + row].Text = "PCF Export (Filtered)";
+            ws.Range["A" + row].CellStyle.Font.Bold = true;
+            ws.Range["A" + row].CellStyle.Font.Size = 16;
+            row += 2;
+
+            // group by CustNum then PCFNum
+            var groups = filtered
+                .GroupBy(x => x.CustNum)
+                .OrderBy(g => g.Key)
+                .SelectMany(g =>
+                    g.GroupBy(x => x.PCFNum)
+                     .OrderBy(gg => gg.Key));
+
+            foreach (var pcfGroup in groups)
+            {
+                var first = pcfGroup.First();
+
+                // --- Header block title ---
+                ws.Range["A" + row].Text = $"Customer {first.CustNum} - PCF {first.PCFNum}";
+                ws.Range["A" + row].CellStyle.Font.Bold = true;
+                ws.Range["A" + row].CellStyle.Font.Size = 12;
+                row++;
+
+                // --- Header key-value pairs (two columns per row: Label in A, Value in B) ---
+                foreach (var (Label, Value) in headerFields)
+                {
+                    ws.Range["A" + row].Text = Label;
+                    ws.Range["A" + row].CellStyle.Font.Bold = true;
+                    ws.Range["B" + row].Text = FormatCell(Value(first));
+                    row++;
+                }
+
+                row++; // spacer line
+
+                // --- Detail table header ---
+                int col = 1;
+                foreach (var (Header, _, _, _) in detailColumns)
+                {
+                    ws.Range[row, col].Text = Header;
+                    ws.Range[row, col].CellStyle.Font.Bold = true;
+                    ws.Range[row, col].CellStyle.Borders[Syncfusion.XlsIO.ExcelBordersIndex.EdgeBottom].LineStyle =
+                        Syncfusion.XlsIO.ExcelLineStyle.Thin;
+                    col++;
+                }
+                row++;
+
+                // --- Detail table rows (each item record for this PCF) ---
+                foreach (var item in pcfGroup)
+                {
+                    col = 1;
+                    foreach (var (_, Value, RightAlign, Format) in detailColumns)
+                    {
+                        var cell = ws.Range[row, col];
+
+                        var v = Value(item);
+                        if (v is DateTime dt)
+                        {
+                            cell.DateTime = dt;
+                            cell.NumberFormat = "m/d/yyyy";
+                        }
+                        else if (v is int or long or double or decimal)
+                        {
+                            cell.Number = Convert.ToDouble(v);
+                            if (!string.IsNullOrEmpty(Format))
+                                cell.NumberFormat = Format;
+                            if (RightAlign)
+                                cell.CellStyle.HorizontalAlignment = Syncfusion.XlsIO.ExcelHAlign.HAlignRight;
+                        }
+                        else if (v is bool b)
+                        {
+                            cell.Text = b ? "Yes" : "No";
+                        }
+                        else
+                        {
+                            cell.Text = v?.ToString() ?? string.Empty;
+                        }
+
+                        col++;
+                    }
+                    row++;
+                }
+
+                // Fit columns for the section
+                ws.UsedRange.AutofitColumns();
+
+                // --- Separate PCFs with blank rows ---
+                row += 3;
+            }
+
+            using var ms = new MemoryStream();
+            workbook.SaveAs(ms);
+            bytes = ms.ToArray();
+        }
+
+        // 4) Download to the browser
+        var base64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync(
+            "downloadFile",
+            $"PCF Export {DateTime.Now:yyyy-MM-dd HHmm}.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            bytes
+        );
+   
+
+
+
+
+
+
+
+        //await this.MyDetGrid.ExportToExcelAsync(exportProperties);
+    }
+
+    private static string FormatCell(object? value)
+    {
+        if (value is null) return string.Empty;
+        if (value is DateTime dt) return dt.ToString("d");
+        return value.ToString() ?? string.Empty;
+    }
+
+
+
+    public void change(string name, Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args)
+    {
+        if (this.MyDetGrid != null)
+        {
+            if (args.Checked)
+            {
+                this.MyDetGrid.ShowColumnAsync(name, "Field");
+            }
+            else
+            {
+                this.MyDetGrid.HideColumnAsync(name, "Field");
+            }
+        }
+        StateHasChanged();
+    }
+
+
+
+    // Instant apply per button
+    private async Task ToggleColumnAsync(string field, bool isSelected)
+    {
+        if (field == "Pct to 4k")
+        {
+            selected[field] = isSelected;
+            if (isSelected)
+                await MyDetGrid.ShowColumns(field, "HeaderText");
+            else
+                await MyDetGrid.HideColumns(field, "HeaderText");
+        }
+        else
+        {
+            selected[field] = isSelected;
+            if (isSelected)
+                await MyDetGrid.ShowColumns(field, "Field");
+            else
+                await MyDetGrid.HideColumns(field, "Field");
+        }
+
+        StateHasChanged();
+    }
+
     private static Dictionary<(int Pcf, string Item), bool>
         AggregateDeleteLater(IEnumerable<PCFDetail> rows)
     {
@@ -314,6 +693,16 @@
         // Option B (optional): also clear Syncfusion’s own localStorage entry for this grid
         // await JS.InvokeVoidAsync("pcfGrid.clearSyncfusionPersistence", "PcfsGrid");
     }
+
+    private async Task PrintVisibleColumns()
+    {
+        if (MyDetGrid != null)
+        {
+            var visibleColumns = await MyDetGrid.GetColumnsAsync();
+            var visibleColumnNames = visibleColumns.Where(c => c.Visible).Select(c => c.Field).ToList();
+            Console.WriteLine("Visible Columns: " + string.Join(", ", visibleColumnNames));
+        }
+    }
 }
 
 <style>
@@ -378,4 +767,93 @@
     :deep(#PcfsDetGrid.e-grid) {
         min-width: 1000px; /* adjust to whatever fits your columns */
     }
+    .e-btngrp-watch::before {
+        content: '\e71b';
+    }
+    .e-btngrp-star::before {
+        content: '\e710';
+    }
+    .e-btngrp-download::before {
+        content: '\e712';
+    }
+    .e-btngrp-bold::before {
+        content: '\e71a'
+    }
+    .e-btngrp-italic::before {
+        content: '\e708';
+    }
+    .e-btngrp-underline::before {
+        content: '\e703';
+    }
+    .button-group-section {
+        width: 320px;
+        margin: 0 auto;
+        margin-top: 1.7%;
+        margin-bottom: 1.7%;
+    }
+    .e-bigger .button-group-section {
+        width: 350px;
+    }
+    .button-group-section .row {
+        margin: 0 0 30px 0;
+    }
+    .button-group-section .row:last-child {
+        margin-bottom: 0;
+    }
+    .button-group-section .row .p:first-child {
+        margin-top: 0;
+    }
+    /* Make the whole button group wrap onto multiple lines */
+    .col-toggles.e-btn-group {
+        display: flex;           /* ensure flex, not inline-flex */
+        flex-wrap: wrap !important;   /* Syncfusion sets nowrap; override it */
+        gap: .4rem .6rem;        /* space between buttons (row x column) */
+        width: 80%;             /* let it use the row width */
+        justify-content: flex-start;
+    }
+
+    /* Keep each button sized to its content (no squish) */
+    .col-toggles .e-btn {
+        flex: 0 0 auto;
+    }
+    .col-toggles .e-btn.col-toggle { border-radius: 9999px; padding: .35rem .65rem; }
+
+    .col-toggles .e-btn.e-success.e-active { background-color: #198754; color: #fff; }
+    .col-toggles .e-btn.e-danger.e-active  { background-color: #dc3545; color: #fff; }
+
+    /* Optional softer look when not active (selected state already flips the class) */
+    .col-toggles .e-btn.e-success:not(.e-active) { background: #eaf6ed; color:#0f5132; }
+    .col-toggles .e-btn.e-danger:not(.e-active)  { background: #fcebea; color:#842029; }
+    .quick-actions { margin-top: .5rem; display: flex; gap: .5rem; }
+    .e-btn-sb-icons {
+        font-family: 'button-icons';
+        line-height: 1;
+        font-style: normal;
+        font-weight: normal;
+        font-variant: normal;
+        text-transform: none;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+    .e-play-icon::before {
+        content: '\e701';
+    }
+    .e-pause-icon::before {
+        content: '\e705';
+    }
+    .e-open-icon::before {
+        content: '\e70d';
+    }
+    .e-add-icon::before {
+        content: '\e70a';
+    }
+
+    .e-btn.e-outline {
+        color: var(--bs-primary, #0d6efd); /* works with Bootstrap 5; falls back to a solid blue */
+        font-weight: 500
+    }    
+    
+    body { }
+            
+
 </style>

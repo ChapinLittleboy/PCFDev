@@ -1352,6 +1352,7 @@ EXEC sp_executesql @query;
     it.Family_Code, 
     fc.Description as FamilyCodeDescription,
     LTRIM(RTRIM(COALESCE(h.SRNum, cc.Salesman, ''))) as Salesman,
+    LTRIM(RTRIM(COALESCE(ca0.Corp_Cust,'N/A'))) as CorpCustNum,
     ISNULL(p.FY2023_Qty, 0) as FY2023_Qty,
     ISNULL(p.FY2024_Qty, 0) as FY2024_Qty,
     ISNULL(p.FY2025_Qty, 0) as FY2025_Qty,
@@ -1371,7 +1372,8 @@ LEFT JOIN CIISQL10.Bat_App.dbo.Item_mst it
     ON i.ItemNum = it.Item
 LEFT JOIN CIISQL10.Bat_App.dbo.famcode_mst fc 
     ON fc.family_code = it.family_code
-
+LEFT JOIN CIISQL10.Bat_App.dbo.custaddr_mst ca0 on h.custnum = ltrim(rtrim(ca0.Cust_Num)) and ca0.cust_seq = 0
+ 
 -- NEW: join to Delete-Later (use DISTINCT to avoid accidental dup rows)
 LEFT JOIN (
     SELECT DISTINCT PcfNum, ItemNum

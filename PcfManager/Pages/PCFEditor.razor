@@ -19,6 +19,7 @@
 @using Syncfusion.Blazor.Popups     
 @using SelectionMode = Syncfusion.Blazor.DropDowns.SelectionMode
 @using Syncfusion.Blazor.SplitButtons
+
 @* for Dialog *@
 
 
@@ -545,7 +546,8 @@ else
                             <div class="col row-head">Columns</div>
 
                             <SfButtonGroup Mode="Syncfusion.Blazor.SplitButtons.SelectionMode.Multiple" CssClass="col-toggles">
-                                @foreach (var c in Columns)
+                                @foreach (var c in Columns.Where(c => 
+                                              !string.Equals(c.Field, "ItemNum", StringComparison.OrdinalIgnoreCase)))
                                 {
                                     <ButtonGroupButton
                                         Selected="@(selected[c.Field])"
@@ -891,6 +893,7 @@ else
     {
         
         "ExcelExport" // built-in export button
+
     
     };
     private void MarkAsDirty()
@@ -982,6 +985,7 @@ else
         var fy = FiscalYearEndYear(DateTime.Now);
         Columns = new()
         {
+            new("ItemNum", "Item"),
             new("ItemDesc", "Item Description"),
             new("ItemStatus", "Item Status"),
             new("ProposedPrice", "Accepted Price"),

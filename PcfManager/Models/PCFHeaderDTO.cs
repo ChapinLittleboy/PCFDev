@@ -145,7 +145,9 @@ public class PCFHeaderDTO : INotifyPropertyChanged
     #region Notes and Edit Information
     public string? GeneralNotes { get; set; }
 
-    public string? LastEditNotes
+    public string? LastEditNotes { get; set; }
+    public string? LastEditNotesOLD
+
     {
         get => _lastEditNotes;
         set

@@ -27,6 +27,7 @@ public class Customer
     public string? SalesManagerEmail { get; set; }
     public string? PaymentTermsDescription { get; set; }
     public string? SalesRepEmail { get; set; }
+    public string? CorpCustNum { get; set; }
 
 
 
