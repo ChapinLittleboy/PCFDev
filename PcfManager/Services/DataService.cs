@@ -1359,6 +1359,12 @@ EXEC sp_executesql @query;
     ISNULL(p.FY2026_Qty, 0) as FY2026_Qty,
     ISNULL(p.FY2027_Qty, 0) as FY2027_Qty,
     ISNULL(p.FY2028_Qty, 0) as FY2028_Qty,
+   ISNULL(p.FY2023_Sales, 0) as FY2023_Qty,
+    ISNULL(p.FY2024_Sales, 0) as FY2024_Sales,
+    ISNULL(p.FY2025_Sales, 0) as FY2025_Sales,
+    ISNULL(p.FY2026_Sales, 0) as FY2026_Sales,
+    ISNULL(p.FY2027_Sales, 0) as FY2027_Sales,
+    ISNULL(p.FY2028_Sales, 0) as FY2028_Sales,
 
     -- NEW: 1 if (PCF, Item) exists in PcItemsDeleteLater; 0 otherwise
     CAST(CASE WHEN d.PcfNum IS NOT NULL THEN 1 ELSE 0 END AS bit) AS DeleteLater
@@ -1390,7 +1396,13 @@ LEFT JOIN OPENQUERY([ciisql10], '
         SUM(CASE WHEN fc.FiscalYear = 2025 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2025_Qty,
         SUM(CASE WHEN fc.FiscalYear = 2026 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2026_Qty,
         SUM(CASE WHEN fc.FiscalYear = 2027 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2027_Qty,
-        SUM(CASE WHEN fc.FiscalYear = 2028 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2028_Qty
+        SUM(CASE WHEN fc.FiscalYear = 2028 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2028_Qty,
+        SUM(CASE WHEN fc.FiscalYear = 2023 THEN CAST(ii.qty_invoiced * ii.price AS decimal(18,4)) ELSE 0 END) AS FY2023_Sales,
+        SUM(CASE WHEN fc.FiscalYear = 2024 THEN CAST(ii.qty_invoiced * ii.price AS decimal(18,4)) ELSE 0 END) AS FY2024_Sales,
+        SUM(CASE WHEN fc.FiscalYear = 2025 THEN CAST(ii.qty_invoiced * ii.price AS decimal(18,4)) ELSE 0 END) AS FY2025_Sales,
+        SUM(CASE WHEN fc.FiscalYear = 2026 THEN CAST(ii.qty_invoiced * ii.price AS decimal(18,4)) ELSE 0 END) AS FY2026_Sales,
+        SUM(CASE WHEN fc.FiscalYear = 2027 THEN CAST(ii.qty_invoiced * ii.price AS decimal(18,4)) ELSE 0 END) AS FY2027_Sales,
+        SUM(CASE WHEN fc.FiscalYear = 2028 THEN CAST(ii.qty_invoiced * ii.price AS decimal(18,4)) ELSE 0 END) AS FY2028_Sales
     FROM Bat_App.dbo.inv_hdr_mst_all AS ih
     JOIN Bat_App.dbo.inv_item_mst_all AS ii
         ON ih.inv_num = ii.inv_num

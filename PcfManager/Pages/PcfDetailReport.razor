@@ -1,8 +1,10 @@
 ﻿@page "/pcf-detail-report"
+@using System.Diagnostics
 @using PcfManager.Models  
 @using Syncfusion.Blazor.Grids
 @using PcfManager.Services
-@using PcfManager.Services
+@using Syncfusion.Blazor.Notifications
+@using Syncfusion.Blazor.Popups
 @using Syncfusion.Blazor.SplitButtons
 @using Syncfusion.Blazor.Buttons
 @using Syncfusion.Blazor.Navigations 
@@ -31,19 +33,31 @@
 <!-- Blazor Server: Pages/_Host.cshtml  |  WASM: wwwroot/index.html -->
 
 
+<div class="col-lg-12 control-section toast-default-section">
+    <SfToast ID="toast_default" @ref="ToastObj" Title="PCF Editor"   Content="@ToastMessage" Timeout="8000" Icon="e-warning">
+        <ToastPosition X="@ToastPosition"></ToastPosition>
+    </SfToast>
+
+</div>
+
 
 <SfGrid ID="PcfsDetGrid" @ref="MyDetGrid" DataSource="@pcfDetails" AllowSorting="true" AllowPaging="true" AllowFiltering="true"
         AllowExcelExport="true" 
         Toolbar="ToolbarItems"
         AllowReordering="true" AllowResizing="true"
         AllowTextWrap="true"
-        EnablePersistence="true"
+        EnablePersistence="false"
         ShowColumnChooser="true"
         AllowGrouping="true" Height="auto" Width="90%">
     <GridTextWrapSettings WrapMode="WrapMode.Header" />
-    <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel"></GridFilterSettings>
+    <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel">
+        <GridFilterColumns>
+            <GridFilterColumn Field="PCFStatusText" MatchCase=false Operator="Syncfusion.Blazor.Operator.Equal"  Value="@PcfStatusValue"></GridFilterColumn>
+            
+        </GridFilterColumns>
+    </GridFilterSettings>
     <GridEvents OnToolbarClick="ToolbarClickHandler" TValue="PCFDetail"></GridEvents>
-    <GridPageSettings PageSize="1000" PageSizes="@(new string[] { "20", "50", "100", "All" })"></GridPageSettings>
+    <GridPageSettings  PageSize="12" PageSizes="@(new string[] { "12", "50", "100", "All" })"></GridPageSettings>
     <GridColumns>
         <GridColumn Field="PCFNum" HeaderText="PCF #" TextAlign="TextAlign.Center" Width="100" Type="ColumnType.Number" />
         <GridColumn Field="CustomerNumber" HeaderText="Customer #" Width="120" />
@@ -51,11 +65,11 @@
         <GridColumn Field="CorpCustNum" HeaderText="Corp Cust Number" Width="120" />
         <GridColumn Field="StartDate" HeaderText="Start Date" Format="d" Type="ColumnType.Date" Width="120" />
         <GridColumn Field="EndDate" HeaderText="End Date" Format="d" Type="ColumnType.Date" Width="120" />
-        <GridColumn Field="PCFStatus" HeaderText="PCF Status" TextAlign="TextAlign.Center" Width="100" />
-        <GridColumn Field="PcfType" HeaderText="Type" Width="100" />
+        <GridColumn Field="PCFStatusText" HeaderText="PCF Status" Width="170"></GridColumn>
+        <GridColumn Field="PcfTypeText" HeaderText="Type" Width="220"></GridColumn>
         <GridColumn Field="ItemNum" HeaderText="Item #" Width="120" />
         <GridColumn Field="ItemDesc" HeaderText="Item Description" Width="200" />
-        <GridColumn Field="ItemStatus" HeaderText="Item Status" Width="120" />
+        <GridColumn Field="ItemStatusText" HeaderText="Item Status" Width="160"></GridColumn>
         <GridColumn Field="PrivateLabelFlag" HeaderText="Private Label" Width="120" />
         <GridColumn Field="CustNum" HeaderText="Cust #" Width="100" />
         <GridColumn Field="VPSalesDate" HeaderText="VP Sales Date" Format="d" Type="ColumnType.Date" Width="130" />
@@ -101,8 +115,18 @@
                     Type="ColumnType.Number" Format="N0" TextAlign="TextAlign.Right" Width="130" />
         <GridColumn Field="FY2026_Qty" HeaderText="FY26 Qty"
                     Type="ColumnType.Number" Format="N0" TextAlign="TextAlign.Right" Width="130" />
+        <GridColumn Field="FY2023_Sales" HeaderText="FY23 Sales"
+                    Type="ColumnType.Number" Format="C0" TextAlign="TextAlign.Right" Width="130" />
+        <GridColumn Field="FY2024_Sales" HeaderText="FY24 Sales"
+                    Type="ColumnType.Number" Format="C0" TextAlign="TextAlign.Right" Width="130" />
+        <GridColumn Field="FY2025_Sales" HeaderText="FY25 Sales"
+                    Type="ColumnType.Number" Format="C0" TextAlign="TextAlign.Right" Width="130" />
+        <GridColumn Field="FY2026_Sales" HeaderText="FY26 Sales"
+                    Type="ColumnType.Number" Format="C0" TextAlign="TextAlign.Right" Width="130" />
     </GridColumns>
+
 </SfGrid>
+
 
 <div class="mt-3">
     <button class="btn btn-primary" @onclick="ApplyDeletes" disabled="@isBusy">
@@ -146,11 +170,24 @@
     private Dictionary<string,bool> selected = new(StringComparer.OrdinalIgnoreCase);
     public List<object> ToolbarItems = default!;
 
+
+    private SfToast ToastObj;
+    private string ToastMessage = "Please change PageSize to ‘All’ before exporting.";
+    private string ToastPosition = "Center";
+    private string PcfStatusValue = "Approved"; // default filter value
+
+
+
+
+
+    // Helpers to compute record range text
+
+
+
     public void Show()
     {
         MyDetGrid.OpenColumnChooserAsync(100, 40);
     }
-
 
 
 
@@ -188,6 +225,8 @@
         {
             //"ExcelExport",                         // built-in item
             new ToolbarItem { Template = CustomButton } // your custom template
+
+
         };
         pcfDetails = await DataSvc.GetAllPCFDetailsWithQtyAsync();
         _originalDeleteLater = AggregateDeleteLater(pcfDetails);
@@ -198,6 +237,7 @@
     public const string PasteSpecialIconCss = "e-btn-icons e-paste-special";
     public const string PasteAsFormulaIconCss = "e-btn-icons e-paste-formula";
     public const string PasteAsHyperlinkIconCss = "e-btn-icons e-paste-hyperlink";
+   
     private string Current = "gridExport";  
    private SfSplitButton SplitBtn = default!;
 
@@ -209,7 +249,10 @@
                                                    <DropDownMenuItem Id="reviewExport" Text="Export in Review Format" IconCss="@PasteSpecialIconCss"></DropDownMenuItem>
 
                                                </DropDownMenuItems>
+                                               
                                            </SfSplitButton>
+
+
     ;
 
     private async Task OnGridCreated()
@@ -220,6 +263,7 @@
             var col = await MyDetGrid.GetColumnByField(c.Field); // or GetColumnByFieldAsync in your version
             selected[c.Field] = col?.Visible ?? true;
         }
+
         StateHasChanged();
     }
     private Task OnPrimaryClicked(Syncfusion.Blazor.SplitButtons.ClickEventArgs _)
@@ -265,21 +309,30 @@
     }
     private async Task ExportReviewFormat()
     {
+
         var ExcelFileName = $"PCFReviews.xlsx";
         ExcelExportProperties exportProperties = new ExcelExportProperties
         {
             FileName = ExcelFileName
         };
-        var originalPageSize = MyDetGrid.PageSettings?.PageSize ?? 20;
-        MyDetGrid.PageSettings.PageSize = int.MaxValue;
-        StateHasChanged();
-        var viewObjects = await MyDetGrid.GetCurrentViewRecordsAsync();
-        MyDetGrid.PageSettings.PageSize = originalPageSize;
 
+
+        var viewObjects = await MyDetGrid.GetCurrentViewRecordsAsync();
+        // MyDetGrid.PageSettings.PageSize = originalPageSize;
+        
         var filtered = viewObjects
             .OfType<PCFDetail>()
             .ToList();
 
+        var ps = MyDetGrid.PageSettings.PageSize;
+        if (ps < MyDetGrid.TotalItemCount)
+        {
+            ToastObj.Content = "You must set Number of Items per page to a higher number";
+            ToastObj.CssClass = "e-toast-warning";
+            await this.ToastObj.ShowAsync();
+            return;
+        }
+        
         // await MyDetGrid.UngroupColumnAsync("PCFNum"); ;
         // await MyDetGrid.UngroupColumnAsync("CorpCustNum"); ;
         // await MyDetGrid.UngroupColumnAsync("CustomerNumber"); ;
@@ -303,8 +356,8 @@
             ("Corp Cust Number",   x => x.CorpCustNum),
             ("Start Date",         x => x.StartDate),
             ("End Date",           x => x.EndDate),
-            ("PCF Status",         x => x.PCFStatus),
-            ("Type",               x => x.PcfType),
+            ("PCF Status",         x => x.PCFStatusText),
+            ("Type",               x => x.PcfTypeText),
             ("Buying Group",       x => x.BuyingGroup),
             ("Sales Manager",      x => x.SalesManager),
             // ("VP Sales Date",      x => x.VPSalesDate),
@@ -322,16 +375,20 @@
         {
             ("Item #",            x => x.ItemNum,              false, null),
             ("Item Description",  x => x.ItemDesc,             false, null),
-            ("Item Status",       x => x.ItemStatus,           false, null),
+            ("Item Status",       x => x.ItemStatusText,           false, null),
             ("Private Label",     x => x.PrivateLabelFlag,     false, null),
             //("Cust #",            x => x.CustNum,              false, null),
            // ("EUT",               x => x.EUT,                  false, null),
            // ("PCF Number (Item)", x => x.PCFNumber,            false, null),
 
-            ("FY23 Qty",          x => x.FY2023_Qty,           true,  "0"),
-            ("FY24 Qty",          x => x.FY2024_Qty,           true,  "0"),
-            ("FY25 Qty",          x => x.FY2025_Qty,           true,  "0"),
-            ("FY26 Qty",          x => x.FY2026_Qty,           true,  "0"),
+           ("FY23 Qty",          x => x.FY2023_Qty,           true,  "0"),
+           ("FY24 Qty",          x => x.FY2024_Qty,           true,  "0"),
+           ("FY25 Qty",          x => x.FY2025_Qty,           true,  "0"),
+           ("FY26 Qty",          x => x.FY2026_Qty,           true,  "0"),
+           ("FY23 Sales",          x => x.FY2023_Sales,           true,  "$#,##0"),
+           ("FY24 Sales",          x => x.FY2024_Sales,           true,  "$#,##0"),
+           ("FY25 Sales",          x => x.FY2025_Sales,           true,  "$#,##0"),
+           ("FY26 Sales",          x => x.FY2026_Sales,           true,  "$#,##0")
         };
 
         // 3) Build the Excel
@@ -404,6 +461,7 @@
                         var cell = ws.Range[row, col];
 
                         var v = Value(item);
+                        
                         if (v is DateTime dt)
                         {
                             cell.DateTime = dt;
@@ -413,7 +471,14 @@
                         {
                             cell.Number = Convert.ToDouble(v);
                             if (!string.IsNullOrEmpty(Format))
+                            {
                                 cell.NumberFormat = Format;
+                            }
+                         
+
+
+
+
                             if (RightAlign)
                                 cell.CellStyle.HorizontalAlignment = Syncfusion.XlsIO.ExcelHAlign.HAlignRight;
                         }
@@ -451,9 +516,11 @@
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             bytes
         );
-   
 
-
+        ToastObj.Timeout = 2000;
+        ToastObj.Content = "Your file is complete";
+        ToastObj.CssClass = "e-toast-success";
+        await this.ToastObj.ShowAsync();
 
 
 
@@ -703,6 +770,47 @@
             Console.WriteLine("Visible Columns: " + string.Join(", ", visibleColumnNames));
         }
     }
+
+    private static readonly Dictionary<int, string> PcfStatusMap = new()
+    {
+        {  0, "New" },
+        {  1, "Awaiting SM Approval" },
+        {  2, "Awaiting VP Approval" },
+        {  3, "Approved" },
+        { -1, "Reopened" },
+        { 99, "Expired" }
+    };
+
+    private static readonly Dictionary<string, string> ItemStatusMap = new()
+    {
+        { "A", "Approved" },
+        { "O", "Obsolete" },
+        { "S", "Slow Moving" }
+    };
+
+    private static readonly Dictionary<string, string> PcfTypeMap = new()
+    {
+        { "W",   "Warehouse (Standard)" },
+        { "DS",  "Dropship (Standard)" },
+        { "PW",  "Promo Warehouse" },
+        { "PD",  "Promo Dropship" },
+        { "T",   "Truckload" },
+        { "PL",  "Private Label Only" },
+        { "D",   "Direct" },
+        { "PART","Parts Only" }
+    };
+
+    private static string MapPcfStatus(int v) =>
+        PcfStatusMap.TryGetValue(v, out var s) ? s : v.ToString();
+
+    private static string MapItemStatus(string v) =>
+        (v != null && ItemStatusMap.TryGetValue(v, out var s)) ? s : v ?? string.Empty;
+
+    private static string MapPcfType(string v) =>
+        (v != null && PcfTypeMap.TryGetValue(v, out var s)) ? s : v ?? string.Empty;
+
+
+
 }
 
 <style>
@@ -720,6 +828,8 @@
 
     .e-grid .e-filtermenudiv {
         margin: 2px 0.15rem 1px 0.01rem;
+        
+
     }
 
     .e-grid .e-headercell .e-filtered::before {
@@ -732,6 +842,7 @@
         font-size: 13px; /* tweak as needed */
         font-weight: 700; /* 400–700 */
         letter-spacing: .2px; /* optional */
+        
     }
 
     .worksheet-header-row {
@@ -852,8 +963,6 @@
         color: var(--bs-primary, #0d6efd); /* works with Bootstrap 5; falls back to a solid blue */
         font-weight: 500
     }    
-    
-    body { }
-            
+
 
 </style>

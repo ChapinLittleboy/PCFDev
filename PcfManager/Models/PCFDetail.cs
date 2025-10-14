@@ -8,7 +8,7 @@ public class PCFDetail
         public string? CustomerName { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
-        public int? PCFStatus { get; set; }
+        public int PCFStatus { get; set; }
         public string? PcfType { get; set; }
         public DateTime? VPSalesDate { get; set; }
         public string? BuyingGroup { get; set; }
@@ -43,7 +43,14 @@ public class PCFDetail
         public decimal FY2027_Qty { get; set; }
         public decimal FY2028_Qty { get; set; }
 
-       
+
+    public decimal FY2023_Sales { get; set; }
+    public decimal FY2024_Sales { get; set; }
+    public decimal FY2025_Sales { get; set; }
+    public decimal FY2026_Sales { get; set; }
+    public decimal FY2027_Sales { get; set; }
+    public decimal FY2028_Sales { get; set; }
+
 
 
     // Not mapped to DB; for display only
@@ -91,4 +98,26 @@ public class PCFDetail
             return $"Cust#: {CustomerNumber} {CustomerName}     PCF#: {PCFNumber}";
         }
     }
+    public string PCFStatusText => PCFStatus switch
+    {
+        0 => "New",
+        1 => "Awaiting SM Approval",
+        2 => "Awaiting VP Approval",
+        3 => "Approved",
+        -1 => "Reopened",
+        99 => "Expired",
+        _ => PCFStatus.ToString()
+    };
+    public string PcfTypeText => (PcfType ?? "").ToUpperInvariant() switch
+    {
+        "W" => "Warehouse (Standard)",
+        "DS" => "Dropship (Standard)",
+        "PW" => "Promo Warehouse",
+        "PD" => "Promo Dropship",
+        "T" => "Truckload",
+        "PL" => "Private Label Only",
+        "D" => "Direct",
+        "PART" => "Parts Only",
+        _ => PcfType ?? string.Empty
+    };
 }
