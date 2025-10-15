@@ -175,8 +175,42 @@
     private string ToastMessage = "Please change PageSize to ‘All’ before exporting.";
     private string ToastPosition = "Center";
     private string PcfStatusValue = "Approved"; // default filter value
+    private bool IsCorpCustFiltered()
+        => MyDetGrid?.FilterSettings?.Columns?.Any(c => c.Field == nameof(PCFDetail.CorpCustNum)) == true;
+    private string GetCorpCustFilterSummary()
+    {
+        var cols = MyDetGrid?.FilterSettings?.Columns?
+            .Where(c => c.Field == nameof(PCFDetail.CorpCustNum))
+            .ToList() ?? new();
 
+        if (cols.Count == 0) return null;
 
+        // Excel filter can create multiple entries for the same column.
+        // Entries sharing the same Uid are OR-ed together by the grid.
+        var groups = cols.GroupBy(c => c.Uid ?? c.Field)
+            .Select(g =>
+                string.Join($" {g.First().Predicate?.ToUpper() ?? "OR"} ",
+                    g.Select(c => $"{c.Operator} '{c.Value}'")))
+            .ToList();
+
+        // If there are multiple Uid groups, the grid ANDs them.
+        return string.Join(" AND ", groups);
+    }
+    private string GetCorpCustFilterSimple()
+    {
+        var cols = MyDetGrid?.FilterSettings?.Columns?
+            .Where(c => c.Field == nameof(PCFDetail.CorpCustNum))
+            .ToList() ?? new();
+
+        if (cols.Count == 0) return null;
+
+        // Excel filter can create multiple entries for the same column.
+        // Entries sharing the same Uid are OR-ed together by the grid.
+        var values = string.Join(" or ", cols.Select(c => c.Value));
+
+        // If there are multiple Uid groups, the grid ANDs them.
+        return values;
+    }
 
 
 
@@ -307,10 +341,21 @@
         };
         await this.MyDetGrid.ExportToExcelAsync(exportProperties);
     }
+
+
     private async Task ExportReviewFormat()
     {
+        string ExcelFileName = $"PCFReviews.xlsx";
+        if (IsCorpCustFiltered())
+        {
+            var filterCorp = GetCorpCustFilterSimple();
+            ExcelFileName = $"PCFReviews CorpCust {filterCorp}.xlsx";
+        }
+        else
+        {
+            ExcelFileName = $"PCFReviews.xlsx";
+        }
 
-        var ExcelFileName = $"PCFReviews.xlsx";
         ExcelExportProperties exportProperties = new ExcelExportProperties
         {
             FileName = ExcelFileName
@@ -319,7 +364,7 @@
 
         var viewObjects = await MyDetGrid.GetCurrentViewRecordsAsync();
         // MyDetGrid.PageSettings.PageSize = originalPageSize;
-        
+
         var filtered = viewObjects
             .OfType<PCFDetail>()
             .ToList();
@@ -332,7 +377,7 @@
             await this.ToastObj.ShowAsync();
             return;
         }
-        
+
         // await MyDetGrid.UngroupColumnAsync("PCFNum"); ;
         // await MyDetGrid.UngroupColumnAsync("CorpCustNum"); ;
         // await MyDetGrid.UngroupColumnAsync("CustomerNumber"); ;
@@ -404,9 +449,17 @@
             ws.Name = "PCF Export";
 
             int row = 1;
-
+            if (IsCorpCustFiltered())
+            {
+                var ccfilter = GetCorpCustFilterSimple();
+                ws.Range["A" + row].Text = $"PCF Review for Corp Customer(s) {ccfilter}";
+            }
+            else
+            {
+                ws.Range["A" + row].Text = "PCF Review";
+            }
             // Optional: a big title on top
-            ws.Range["A" + row].Text = "PCF Export (Filtered)";
+           // ws.Range["A" + row].Text = "PCF Export (Filtered)";
             ws.Range["A" + row].CellStyle.Font.Bold = true;
             ws.Range["A" + row].CellStyle.Font.Size = 16;
             row += 2;
@@ -498,6 +551,7 @@
 
                 // Fit columns for the section
                 ws.UsedRange.AutofitColumns();
+                ws.Range["B:B"].ColumnWidth = 50;
 
                 // --- Separate PCFs with blank rows ---
                 row += 3;
@@ -512,7 +566,7 @@
         var base64 = Convert.ToBase64String(bytes);
         await JS.InvokeVoidAsync(
             "downloadFile",
-            $"PCF Export {DateTime.Now:yyyy-MM-dd HHmm}.xlsx",
+            $"{ExcelFileName}",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             bytes
         );
