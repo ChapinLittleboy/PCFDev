@@ -8,7 +8,9 @@
 @using Syncfusion.Blazor.SplitButtons
 @using Syncfusion.Blazor.Buttons
 @using Syncfusion.Blazor.Navigations 
+@using Syncfusion.XlsIO
 @using ChangeEventArgs = Microsoft.AspNetCore.Components.ChangeEventArgs
+@inject CustomerService CustomerService
 
 @inject PcfManager.Services.DataService DataSvc
 @inject IJSRuntime JS
@@ -242,14 +244,15 @@
             new("Family_Code", "Family Code"),
 
             // Dynamic FY labels (current + prior years)
-            new("CurrentFYSales", $"FY{fy} Sales"),
+            
             new("CurrentFYUnits", $"FY{fy} Units"),
-
-            new("Prior1FYSales", $"FY{fy - 1} Sales"),
+            new("CurrentFYSales", $"FY{fy} Sales"),
+            
             new("Prior1FYUnits", $"FY{fy - 1} Units"),
-
-            new("Prior2FYSales", $"FY{fy - 2} Sales"),
+            new("Prior1FYSales", $"FY{fy - 1} Sales"),
+            
             new("Prior2FYUnits", $"FY{fy - 2} Units"),
+            new("Prior2FYSales", $"FY{fy - 2} Sales")
         };
 
         foreach (var c in Columns)
@@ -264,6 +267,7 @@
         };
         pcfDetails = await DataSvc.GetAllPCFDetailsWithQtyAsync();
         _originalDeleteLater = AggregateDeleteLater(pcfDetails);
+        
         isLoading = false;
     }
 
@@ -361,6 +365,305 @@
             FileName = ExcelFileName
         };
 
+        var viewObjects = await MyDetGrid.GetCurrentViewRecordsAsync();
+
+        var filtered = viewObjects
+            .OfType<PCFDetail>()
+            .ToList();
+
+        var ps = MyDetGrid.PageSettings.PageSize;
+        if (ps < MyDetGrid.TotalItemCount)
+        {
+            ToastObj.Content = "You must set Number of Items per page to a higher number";
+            ToastObj.CssClass = "e-toast-warning";
+            await this.ToastObj.ShowAsync();
+            return;
+        }
+
+        if (filtered.Count == 0)
+        {
+            await JS.InvokeVoidAsync("alert", "No filtered rows to export.");
+            return;
+        }
+
+        // ================== ENRICHMENT BLOCK ==================
+        // Goal:
+        //  - Compute Promo fields per business rule:
+        //      if PcfType != "PD" && PcfType != "PW" => "Not applicable"
+        //      else use existing PromoFreightTerms and FreightMinimums (promo min)
+        //  - Fill Standard fields from CustomerService:
+        //      StandardFreightTerms  <- CustomerInfo.FreightTerms
+        //      StandardFreightMinimums <- CustomerInfo.FreightMinimums
+        //
+        // Make sure PCFDetail includes:
+        //   public string? StandardFreightTerms { get; set; }
+        //   public string? StandardFreightMinimums { get; set; }
+        //
+        // NOTE: We do not keep a Customer object; we copy strings over.
+
+        // Collect distinct customers
+        var distinctCustNums = filtered
+            .Select(d => d.CustomerNumber)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // Fetch all customer infos in parallel
+        var fetchTasks = distinctCustNums.ToDictionary(
+            custNum => custNum!,
+            custNum => CustomerService.GetCustomerInformationForCustomerAsync(custNum!)
+        );
+
+        await Task.WhenAll(fetchTasks.Values);
+
+        // Build a lookup map
+        var customerInfoByNumber = new Dictionary<string, dynamic?>( // use concrete type if you have one
+            capacity: fetchTasks.Count,
+            comparer: StringComparer.OrdinalIgnoreCase
+        );
+
+        foreach (var kvp in fetchTasks)
+        {
+            customerInfoByNumber[kvp.Key] = kvp.Value.Result; // safe after WhenAll
+        }
+
+        foreach (var d in filtered)
+        {
+            // Promo rule
+            var isPromoApplicable = string.Equals(d.PcfType, "PD", StringComparison.OrdinalIgnoreCase)
+                                    || string.Equals(d.PcfType, "PW", StringComparison.OrdinalIgnoreCase);
+
+            if (!isPromoApplicable)
+            {
+                d.PromoFreightTerms = "Not applicable";
+                d.FreightMinimums = "Not applicable"; // this remains your *promo* minimums field
+            }
+            // else: leave whatever is already on the record
+
+            // Standard fields from customer info (copy strings only)
+            if (!string.IsNullOrWhiteSpace(d.CustomerNumber) &&
+                customerInfoByNumber.TryGetValue(d.CustomerNumber!, out var cinfo) &&
+                cinfo is not null)
+            {
+                // Adjust property names if they differ in your CustomerInfo DTO
+                d.StandardFreightTerms = cinfo.FreightTerms;
+                d.StandardFreightMinimums = cinfo.FreightMinimums.ToString();
+            }
+            else
+            {
+                d.StandardFreightTerms = d.StandardFreightTerms ?? string.Empty;
+                d.StandardFreightMinimums = d.StandardFreightMinimums ?? string.Empty;
+            }
+        }
+        // ======================================================
+
+        // ---------- Header fields (now includes both promo & standard) ----------
+        var headerFields = new (string Label, Func<PCFDetail, object?> Value)[]
+        {
+        ("PCF #",                   x => x.PCFNum),
+        ("Customer #",              x => x.CustomerNumber),
+        ("Customer Name",           x => x.CustomerName),
+        ("Corp Cust Number",        x => x.CorpCustNum),
+        ("Start Date",              x => x.StartDate),
+        ("End Date",                x => x.EndDate),
+        ("PCF Status",              x => x.PCFStatusText),
+        ("Type",                    x => x.PcfTypeText),
+        ("Buying Group",            x => x.BuyingGroup),
+        ("Sales Manager",           x => x.SalesManager),
+        ("Bill To Address",         x => x.BillToAddress),
+        ("City",                    x => x.BillToCity),
+        ("State",                   x => x.BTState),
+        ("ZIP",                     x => x.BTZip),
+
+        // PROMO (subject to the PD/PW applicability rule above)
+        ("Promo Freight Terms",     x => x.PromoFreightTerms),
+        ("Promo Freight Min.",      x => x.FreightMinimums),
+
+        // STANDARD (copied from customer info)
+        ("Standard Freight Terms",  x => x.StandardFreightTerms),
+        ("Standard Freight Min.",   x => x.StandardFreightMinimums),
+
+        ("Notes",                   x => x.GeneralNotes),
+        };
+
+        var detailColumns = new (string Header, Func<PCFDetail, object?> Value, bool RightAlign, string? Format)[]
+        {
+        ("Item #",            x => x.ItemNum,              false, null),
+        ("Item Description",  x => x.ItemDesc,             false, null),
+        ("Item Status",       x => x.ItemStatusText,       false, null),
+        ("Private Label",     x => x.PrivateLabelFlag,     false, null),
+        ("Delete Later",     x => x.DeleteLater,     true, null),
+
+        ("FY26 Qty",          x => x.FY2026_Qty,           true,  "0"),
+        ("FY26 Sales",        x => x.FY2026_Sales,         true,  "$#,##0"),
+        ("FY25 Qty",          x => x.FY2025_Qty,           true,  "0"),
+        ("FY25 Sales",        x => x.FY2025_Sales,         true,  "$#,##0"),
+        ("FY24 Qty",          x => x.FY2024_Qty,           true,  "0"),
+        ("FY24 Sales",        x => x.FY2024_Sales,         true,  "$#,##0"),
+        ("FY23 Qty",          x => x.FY2023_Qty,           true,  "0"),
+        ("FY23 Sales",        x => x.FY2023_Sales,         true,  "$#,##0")
+        };
+
+        // -------------- Excel build (unchanged except header list) --------------
+        byte[] bytes;
+
+        using (var excelEngine = new Syncfusion.XlsIO.ExcelEngine())
+        {
+            var application = excelEngine.Excel;
+            application.DefaultVersion = Syncfusion.XlsIO.ExcelVersion.Xlsx;
+
+            var workbook = application.Workbooks.Create(1);
+            var ws = workbook.Worksheets[0];
+            ws.Name = "PCF Export";
+
+            int row = 1;
+            if (IsCorpCustFiltered())
+            {
+                var ccfilter = GetCorpCustFilterSimple();
+                ws.Range["A" + row].Text = $"PCF Review for Corp Customer(s) {ccfilter}";
+            }
+            else
+            {
+                ws.Range["A" + row].Text = "PCF Review";
+            }
+            ws.Range["A" + row].CellStyle.Font.Bold = true;
+            ws.Range["A" + row].CellStyle.Font.Size = 16;
+            row += 2;
+
+            var groups = filtered
+                .GroupBy(x => x.CustNum)
+                .OrderBy(g => g.Key)
+                .SelectMany(g =>
+                    g.GroupBy(x => x.PCFNum)
+                     .OrderBy(gg => gg.Key));
+
+            foreach (var pcfGroup in groups)
+            {
+                var first = pcfGroup.First();
+
+                ws.Range["A" + row].Text = $"Customer {first.CustNum} - PCF {first.PCFNum}";
+                ws.Range["A" + row].CellStyle.Font.Bold = true;
+                ws.Range["A" + row].CellStyle.Font.Size = 12;
+                row++;
+
+                foreach (var (Label, Value) in headerFields)
+                {
+                    ws.Range["A" + row].Text = Label;
+                    ws.Range["A" + row].CellStyle.Font.Bold = true;
+                    ws.Range["B" + row].Text = FormatCell(Value(first));
+                    row++;
+                }
+
+                row++; // spacer line
+
+                int col = 1;
+                foreach (var (Header, _, _, _) in detailColumns)
+                {
+                    ws.Range[row, col].Text = Header;
+                    ws.Range[row, col].CellStyle.Font.Bold = true;
+                    ws.Range[row, col].CellStyle.Borders[Syncfusion.XlsIO.ExcelBordersIndex.EdgeBottom].LineStyle =
+                        Syncfusion.XlsIO.ExcelLineStyle.Thin;
+                    col++;
+                }
+                row++;
+
+                foreach (var item in pcfGroup)
+                {
+                    col = 1;
+                    foreach (var (_, Value, RightAlign, Format) in detailColumns)
+                    {
+                        var cell = ws.Range[row, col];
+                        var v = Value(item);
+
+                        if (v is DateTime dt)
+                        {
+                            cell.DateTime = dt;
+                            cell.NumberFormat = "m/d/yyyy";
+                        }
+                        else if (v is int || v is long || v is double || v is decimal)
+                        {
+                            cell.Number = Convert.ToDouble(v);
+                            if (!string.IsNullOrEmpty(Format))
+                            {
+                                cell.NumberFormat = Format;
+                            }
+                            if (RightAlign)
+                                cell.CellStyle.HorizontalAlignment = Syncfusion.XlsIO.ExcelHAlign.HAlignRight;
+                        }
+                        else if (v is bool b)
+                        {
+                            cell.Text = b ? "Yes" : "";
+                            cell.HorizontalAlignment = ExcelHAlign.HAlignCenter;
+                        }
+                        else
+                        {
+                            cell.Text = v?.ToString() ?? string.Empty;
+                        }
+
+                        col++;
+                    }
+                    row++;
+                }
+
+                ws.UsedRange.AutofitColumns();
+                ws.Range["B:B"].ColumnWidth = 50;
+                var lastCol = ws.UsedRange.LastColumn;
+                for (int c = 1; c <= lastCol -1; c++)
+                {
+                    // XlsIO reports 0 when the column is using the sheet's default width,
+                    // so fall back to StandardWidth in that case.
+                    double current = ws.Columns[c].ColumnWidth;
+                    if (current <= 0) current = ws.StandardWidth;
+
+                    double updated = Math.Min(255.0, current + 2.0);
+                    ws.Columns[c].ColumnWidth = updated;
+                }
+
+
+                row += 3;
+            }
+
+            using var ms = new MemoryStream();
+            workbook.SaveAs(ms);
+            bytes = ms.ToArray();
+        }
+
+        var base64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync(
+            "downloadFile",
+            $"{ExcelFileName}",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            bytes
+        );
+
+        ToastObj.Timeout = 2000;
+        ToastObj.Content = "Your file is complete";
+        ToastObj.CssClass = "e-toast-success";
+        await this.ToastObj.ShowAsync();
+    }
+
+
+
+
+
+    private async Task ExportReviewFormatOLD()
+    {
+        string ExcelFileName = $"PCFReviews.xlsx";
+        if (IsCorpCustFiltered())
+        {
+            var filterCorp = GetCorpCustFilterSimple();
+            ExcelFileName = $"PCFReviews CorpCust {filterCorp}.xlsx";
+        }
+        else
+        {
+            ExcelFileName = $"PCFReviews.xlsx";
+        }
+
+        ExcelExportProperties exportProperties = new ExcelExportProperties
+        {
+            FileName = ExcelFileName
+        };
+
 
         var viewObjects = await MyDetGrid.GetCurrentViewRecordsAsync();
         // MyDetGrid.PageSettings.PageSize = originalPageSize;
@@ -411,8 +714,8 @@
             ("State",              x => x.BTState),
             ("ZIP",                x => x.BTZip),
             // ("Payment Terms",      x => x.PromoPaymentTermsText),
-            // ("Freight Terms",      x => x.PromoFreightTerms),
-            // ("Freight Min.",       x => x.FreightMinimums),
+            ("Freight Terms",      x => x.PromoFreightTerms),
+            ("Freight Min.",       x => x.FreightMinimums),
             ("Notes",              x => x.GeneralNotes),
         };
 
@@ -426,14 +729,17 @@
            // ("EUT",               x => x.EUT,                  false, null),
            // ("PCF Number (Item)", x => x.PCFNumber,            false, null),
 
-           ("FY23 Qty",          x => x.FY2023_Qty,           true,  "0"),
-           ("FY24 Qty",          x => x.FY2024_Qty,           true,  "0"),
-           ("FY25 Qty",          x => x.FY2025_Qty,           true,  "0"),
            ("FY26 Qty",          x => x.FY2026_Qty,           true,  "0"),
-           ("FY23 Sales",          x => x.FY2023_Sales,           true,  "$#,##0"),
-           ("FY24 Sales",          x => x.FY2024_Sales,           true,  "$#,##0"),
+           ("FY26 Sales",          x => x.FY2026_Sales,           true,  "$#,##0"),
+           ("FY25 Qty",          x => x.FY2025_Qty,           true,  "0"),
            ("FY25 Sales",          x => x.FY2025_Sales,           true,  "$#,##0"),
-           ("FY26 Sales",          x => x.FY2026_Sales,           true,  "$#,##0")
+           ("FY24 Qty",          x => x.FY2024_Qty,           true,  "0"),
+           ("FY24 Sales",          x => x.FY2024_Sales,           true,  "$#,##0"),
+           ("FY23 Qty",          x => x.FY2023_Qty,           true,  "0"),
+           ("FY23 Sales",          x => x.FY2023_Sales,           true,  "$#,##0")
+           
+           
+           
         };
 
         // 3) Build the Excel
@@ -475,6 +781,7 @@
             foreach (var pcfGroup in groups)
             {
                 var first = pcfGroup.First();
+
 
                 // --- Header block title ---
                 ws.Range["A" + row].Text = $"Customer {first.CustNum} - PCF {first.PCFNum}";
@@ -552,8 +859,8 @@
                 // Fit columns for the section
                 ws.UsedRange.AutofitColumns();
                 ws.Range["B:B"].ColumnWidth = 50;
-
-                // --- Separate PCFs with blank rows ---
+               
+          // --- Separate PCFs with blank rows ---
                 row += 3;
             }
 

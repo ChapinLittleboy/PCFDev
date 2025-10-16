@@ -15,7 +15,7 @@ public class PCFDetail
         public string? GeneralNotes { get; set; }
         public string? PromoPaymentTermsText { get; set; }
         public string? PromoFreightTerms { get; set; }
-        public string? FreightMinimums { get; set; }
+        public string? FreightMinimums { get; set; }  // this will hold Promo Freight Minimums
         public string? SalesManager { get; set; }
         public string? BillToAddress { get; set; }
         public string? BillToCity { get; set; }
@@ -35,6 +35,10 @@ public class PCFDetail
         public bool DeleteNow { get; set; }
         public bool DeleteLater { get; set; } // not in DB, used in UI to mark for deletion
         public string? CorpCustNum { get; set; }
+
+    public string? StandardFreightTerms { get; set; }
+
+    public string? StandardFreightMinimums { get; set; }
 
     public decimal FY2023_Qty { get; set; }
         public decimal FY2024_Qty { get; set; }

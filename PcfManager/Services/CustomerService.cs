@@ -72,9 +72,8 @@ AND ca.cust_seq = cu.cust_seq AND ca.site_ref = cu.site_ref and ca.cust_seq = 0
 , cu.End_user_type as EUT, cu.cust_type as BuyingGroup
 , sm.SalesManagerName, sm.SalesManagerEmail, sre.EmailList as SalesRepEmail
 from custaddr_mst ca 
-JOIN customer_mst cu on ca.cust_num = cu.cust_num 
+JOIN customer_mst cu on ca.cust_num = cu.cust_num AND ca.cust_seq = cu.cust_seq AND ca.site_ref = cu.site_ref and ca.cust_seq = 0
 join terms_mst terms on cu.terms_code = terms.terms_code
-AND ca.cust_seq = cu.cust_seq AND ca.site_ref = cu.site_ref and ca.cust_seq = 0
 left join Chap_SalesManagers sm on sm.SalesManagerInitials = cu.uf_c_slsmgr
 Left join Chap_SalesRepEmail sre on sre.RepCode = cu.slsman
 
