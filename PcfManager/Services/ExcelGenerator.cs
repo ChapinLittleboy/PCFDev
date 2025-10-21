@@ -142,7 +142,7 @@ public class ExcelGenerator
     /// Maps the caller’s requested tokens to column headers and cell writers.
     /// Supports both friendly tokens (e.g., “Price”, “Margin”) and explicit FY headers (e.g., “FY2026_Sales”).
     /// </summary>
-    private static IEnumerable<ColSpec> BuildItemColumnSpecs(IEnumerable<string> requested, int fy)
+    private static IEnumerable<ColSpec> BuildItemColumnSpecsOLD(IEnumerable<string> requested, int fy)
     {
         // Normalize for easy matching, but keep original to render headers when needed.
         var req = requested.Select(s => s?.Trim()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
@@ -252,6 +252,127 @@ public class ExcelGenerator
         }
     }
 
+    private static IEnumerable<ColSpec> BuildItemColumnSpecs(IEnumerable<string> requested, int fy)
+    {
+        var req = requested.Select(s => s?.Trim()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+
+        foreach (var token in req)
+        {
+            var key = token.Replace("_", "").ToUpperInvariant();
+
+            // Core fields
+            if (key == "ITEMNUM")
+                yield return new ColSpec { Header = "ItemNum", Write = (c, x) => c.Text = x.ItemNum };
+            else if (key == "ITEMDESC")
+                yield return new ColSpec { Header = "ItemDesc", Write = (c, x) => c.Text = x.ItemDesc };
+            else if (key == "ITEMSTATUS")
+            {
+                yield return new ColSpec
+                {
+                    Header = "ItemStatus",
+                    Write = (c, x) =>
+                    {
+                        var status = (x?.ItemStatus ?? string.Empty).ToUpperInvariant() switch
+                        {
+                            "A" => "Active",
+                            "O" => "Obsolete",
+                            "S" => "Slow Moving",
+                            _ => ""
+                        };
+                        c.Text = status;
+                    }
+                };
+            }
+            else if (key is "PRICE" or "PROPOSEDPRICE")
+            {
+                yield return new ColSpec
+                {
+                    Header = "Price",
+                    Write = (c, x) => WriteCurrency(c, (double)x.ProposedPrice)
+                };
+            }
+            else if (key == "MARGIN")
+            {
+                yield return new ColSpec
+                {
+                    Header = "Margin",
+                    Write = (c, x) =>
+                    {
+                        c.Number = (double)x.Margin;
+                        c.NumberFormat = "0.00%";
+                    }
+                };
+            }
+            else if (key == "FAMILYCODE")
+                yield return new ColSpec { Header = "Family_Code", Write = (c, x) => c.Text = x.Family_Code };
+            else if (key == "FAMILYCODEDESCRIPTION")
+                yield return new ColSpec { Header = "Family_Code_Description", Write = (c, x) => c.Text = x.Family_Code_Description };
+
+            // Friendly FY aliases (current / prior1 / prior2)
+            else if (key is "FYCURRENTSALES" or "CURRENTFYSALES")
+                yield return new ColSpec { Header = $"FY{fy}_Sales", Write = (c, x) => WriteCurrency(c, (double)x.CurrentFYSales) };
+            else if (key is "FYCURRENTUNITS" or "CURRENTFYUNITS")
+                yield return new ColSpec { Header = $"FY{fy}_Units", Write = (c, x) => c.Number = (double)x.CurrentFYUnits };
+            else if (key is "FYPRIOR1SALES" or "PRIOR1FYSALES")
+                yield return new ColSpec { Header = $"FY{fy - 1}_Sales", Write = (c, x) => WriteCurrency(c, (double)x.Prior1FYSales) };
+            else if (key is "FYPRIOR1UNITS" or "PRIOR1FYUNITS")
+                yield return new ColSpec { Header = $"FY{fy - 1}_Units", Write = (c, x) => c.Number = (double)x.Prior1FYUnits };
+            else if (key is "FYPRIOR2SALES" or "PRIOR2FYSALES")
+                yield return new ColSpec { Header = $"FY{fy - 2}_Sales", Write = (c, x) => WriteCurrency(c, (double)x.Prior2FYSales) };
+            else if (key is "FYPRIOR2UNITS" or "PRIOR2FYUNITS")
+                yield return new ColSpec { Header = $"FY{fy - 2}_Units", Write = (c, x) => c.Number = (double)x.Prior2FYUnits };
+
+            // Explicit FY headers (e.g., "FY2026_Sales" / "FY2026_Units")
+            else if (TryParseExplicitFyHeader(token, out var fyYear, out var kind))
+            {
+                if (kind == "SALES")
+                {
+                    yield return new ColSpec
+                    {
+                        Header = $"FY{fyYear}_Sales",
+                        Write = (c, x) =>
+                        {
+                            if (fyYear == fy)
+                                WriteCurrency(c, (double)x.CurrentFYSales);
+                            else if (fyYear == fy - 1)
+                                WriteCurrency(c, (double)x.Prior1FYSales);
+                            else if (fyYear == fy - 2)
+                                WriteCurrency(c, (double)x.Prior2FYSales);
+                            else
+                                c.Text = ""; // outside available range
+                        }
+                    };
+                }
+                else // UNITS
+                {
+                    yield return new ColSpec
+                    {
+                        Header = $"FY{fyYear}_Units",
+                        Write = (c, x) =>
+                        {
+                            if (fyYear == fy)
+                                c.Number = (double)x.CurrentFYUnits;
+                            else if (fyYear == fy - 1)
+                                c.Number = (double)x.Prior1FYUnits;
+                            else if (fyYear == fy - 2)
+                                c.Number = (double)x.Prior2FYUnits;
+                            else
+                                c.Text = ""; // outside available range
+                        }
+                    };
+                }
+            }
+            // Unknown token: skip
+        }
+    }
+
+    private static void WriteCurrency(IRange cell, double value)
+    {
+        cell.Number = value;
+        // Currency format with thousands separator and two decimals.
+        // (If you prefer accounting format, use: "_($* #,##0.00_);_($* (#,##0.00);_($* \"-\"??_);_(@_)" )
+        cell.NumberFormat = "$#,##0.00";
+    }
     private static bool TryParseExplicitFyHeader(string token, out int fyYear, out string kind /* SALES or UNITS */)
     {
         fyYear = 0;

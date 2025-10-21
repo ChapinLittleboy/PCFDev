@@ -1587,7 +1587,7 @@ INSERT INTO @Keys (PCFNumber, ItemNum) VALUES {valuesSb};
 
 
 -- 1) Archive first
-INSERT INTO PCItems_DeletedArchiveTesting
+INSERT INTO PCItems_DeletedArchive
 SELECT pi.*
 FROM PCItems pi
 JOIN @Keys k
@@ -1596,7 +1596,7 @@ JOIN @Keys k
 
 -- 2) Delete from live table
 DELETE pi
-FROM PCItemsTesting pi
+FROM PCItems pi
 JOIN @Keys k
   ON k.PCFNumber = pi.PCFNumber
  AND k.ItemNum    = pi.ItemNum;";
@@ -1612,7 +1612,7 @@ JOIN @Keys k
                 var pcfStringKey = pcfNumber.ToString();
 
                 var updateNotesSql = @"
-UPDATE ProgControlTesting
+UPDATE ProgControl
 SET EditNotes = COALESCE(EditNotes, '') + @AppendText
 WHERE PCFNum = @PCFNum;";
 
@@ -1909,7 +1909,7 @@ WHEN NOT MATCHED THEN
                 var appendText = $"  {stamp} Queued items {itemList} for delete (reason: {reasonForNote})";
 
                 var updateNotesSql = @"
-UPDATE ProgControlTesting
+UPDATE ProgControl
 SET EditNotes = COALESCE(EditNotes, '') + @AppendText
 WHERE PCFNum = @PCFNum;"; // PCFNum is string in ProgControl
 

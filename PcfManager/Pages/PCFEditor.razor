@@ -578,28 +578,28 @@ else
                                 <GridColumn Field="ItemStatus" HeaderText="Item Status" Width="100" TextAlign="TextAlign.Center">
 
                                 </GridColumn>
-                                <GridColumn Field="ProposedPrice" HeaderText="Accepted Price" Width="150" TextAlign="TextAlign.Right" Format="N2" EditType="EditType.NumericEdit"></GridColumn>
+                                <GridColumn Field="ProposedPrice" HeaderText="Accepted Price" Width="150" TextAlign="TextAlign.Right" Format="C2" EditType="EditType.NumericEdit"></GridColumn>
                                 <GridColumn Field="Margin" HeaderText="Margin" Width="120"
                                             TextAlign="TextAlign.Right" Format="P2" AllowEditing="false">
                                 </GridColumn>
-                                <GridColumn Field="PP1Price" HeaderText="$4k Price (PP1)" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                <GridColumn Field="PP1Price" HeaderText="$4k Price (PP1)" Width="150" TextAlign="TextAlign.Right" Format="C2" AllowEditing="false"></GridColumn>
                                 <GridColumn HeaderText="Pct to 4k" Width="75" TextAlign="TextAlign.Right" Template="@PercentageTemplate"/>
-                                <GridColumn Field="PP2Price" HeaderText="$12.5k Price (PP2)" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
-                                <GridColumn Field="FOBPrice" HeaderText="FOB Price" Width="150" TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                <GridColumn Field="PP2Price" HeaderText="$12.5k Price (PP2)" Width="150" TextAlign="TextAlign.Right" Format="C2" AllowEditing="false"></GridColumn>
+                                <GridColumn Field="FOBPrice" HeaderText="FOB Price" Width="150" TextAlign="TextAlign.Right" Format="C2" AllowEditing="false"></GridColumn>
                                 <GridColumn Field="Family_Code" HeaderText="Family Code" Width="150" TextAlign="TextAlign.Left" AllowEditing="false"></GridColumn>
 
                                 <GridColumn Field="CurrentFYSales" HeaderText="@($"{CurrentFYHeader} Sales")" Width="150" 
-                                            TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                            TextAlign="TextAlign.Right" Format="C0" AllowEditing="false"></GridColumn>
                                 <GridColumn Field="CurrentFYUnits" HeaderText="@($"{CurrentFYHeader} Units")" Width="150"
                                             TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
 
                                 <GridColumn Field="Prior1FYSales" HeaderText="@($"{Prior1FYHeader} Sales")" Width="150"
-                                            TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                            TextAlign="TextAlign.Right" Format="C0" AllowEditing="false"></GridColumn>
                                 <GridColumn Field="Prior1FYUnits" HeaderText="@($"{Prior1FYHeader} Units")" Width="150"
                                             TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
 
                                 <GridColumn Field="Prior2FYSales" HeaderText="@($"{Prior2FYHeader} Sales")" Width="150"
-                                            TextAlign="TextAlign.Right" Format="N2" AllowEditing="false"></GridColumn>
+                                            TextAlign="TextAlign.Right" Format="C0" AllowEditing="false"></GridColumn>
                                 <GridColumn Field="Prior2FYUnits" HeaderText="@($"{Prior2FYHeader} Units")" Width="150"
                                             TextAlign="TextAlign.Right" Format="N0" AllowEditing="false"></GridColumn>
                             </GridColumns>

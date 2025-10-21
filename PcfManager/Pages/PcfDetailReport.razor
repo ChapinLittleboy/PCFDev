@@ -99,7 +99,13 @@
             </Template>
         </GridColumn>
 
-        <GridColumn HeaderText="Delete Later" Width="130" TextAlign="TextAlign.Center" AllowFiltering="false" AllowSorting="false">
+        <GridColumn Field="@nameof(PcfManager.Models.PCFDetail.DeleteLater)"
+                    HeaderText="Delete Later"
+                    Width="130"
+                    TextAlign="TextAlign.Center"
+                    Type="ColumnType.Boolean"
+                    AllowFiltering="true"
+                    AllowSorting="true">
             <Template Context="ctx">
                 @{
                     var row = (PcfManager.Models.PCFDetail)ctx;
