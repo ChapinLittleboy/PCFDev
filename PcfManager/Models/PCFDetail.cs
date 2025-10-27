@@ -55,7 +55,24 @@ public class PCFDetail
     public decimal FY2027_Sales { get; set; }
     public decimal FY2028_Sales { get; set; }
 
+    public decimal? StandardCost { get; set; }
 
+    public decimal? StandardMargin
+    {
+        get
+        {
+            // Return null if we can’t calculate
+            if ( ApprovedPriceDecimal == 0)
+                return null;
+
+            var cost = StandardCost ?? 0m; // Treat null or blank as 0
+            return (ApprovedPriceDecimal - cost) / ApprovedPriceDecimal;
+        }
+    }
+
+    // If you want a percentage instead, expose another property:
+    public decimal? StandardMarginPercent =>
+        StandardMargin * 100m;
 
     // Not mapped to DB; for display only
     public decimal NewPrice { get; set; }

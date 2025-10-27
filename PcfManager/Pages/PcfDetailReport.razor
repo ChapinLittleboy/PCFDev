@@ -71,6 +71,8 @@
         <GridColumn Field="PcfTypeText" HeaderText="Type" Width="220"></GridColumn>
         <GridColumn Field="ItemNum" HeaderText="Item #" Width="120" />
         <GridColumn Field="ItemDesc" HeaderText="Item Description" Width="200" />
+        <GridColumn Field="Family_Code" HeaderText="Family Code" Width="120" />
+        <GridColumn Field="Family_Code_Description" HeaderText="FamCode Description" Width="200" />
         <GridColumn Field="ItemStatusText" HeaderText="Item Status" Width="160"></GridColumn>
         <GridColumn Field="PrivateLabelFlag" HeaderText="Private Label" Width="120" />
         <GridColumn Field="CustNum" HeaderText="Cust #" Width="100" />
@@ -131,6 +133,10 @@
                     Type="ColumnType.Number" Format="C0" TextAlign="TextAlign.Right" Width="130" />
         <GridColumn Field="FY2026_Sales" HeaderText="FY26 Sales"
                     Type="ColumnType.Number" Format="C0" TextAlign="TextAlign.Right" Width="130" />
+        <GridColumn Field="ApprovedPriceDecimal" HeaderText="PCF Price"
+                    Type="ColumnType.Number" Format="C2" TextAlign="TextAlign.Right" Width="130" />
+        <GridColumn Field="StandardMargin" HeaderText="StdMargin"
+                    Type="ColumnType.Number" Format="P2" TextAlign="TextAlign.Right" Width="130" />
     </GridColumns>
 
 </SfGrid>
@@ -143,7 +149,9 @@
     <span class="ms-3">@statusMessage</span>
 </div>
 
-
+<div>
+    <span style="font-size: 50%;">* Note:StdMargin = PCF Price minus Standard Cost divided by PCF Price and returned as percent</span>
+</div>
 
 @if (isLoading)
 {
@@ -248,6 +256,9 @@
             new("PP2Price", "$12.5k Price (PP2)"),
             new("FOBPrice", "FOB"),
             new("Family_Code", "Family Code"),
+            new("Family_Code_Description", "Family Name"),
+            new("StandardMargin", "StdMargin"),
+            
 
             // Dynamic FY labels (current + prior years)
             
@@ -499,6 +510,8 @@
         ("Item Status",       x => x.ItemStatusText,       false, null),
         ("Private Label",     x => x.PrivateLabelFlag,     false, null),
         ("Delete Later",     x => x.DeleteLater,     true, null),
+        ("Family Code",            x => x.Family_Code,              false, null),
+        ("Family Name",  x => x.Family_Code_Description,             false, null),
 
         ("FY26 Qty",          x => x.FY2026_Qty,           true,  "0"),
         ("FY26 Sales",        x => x.FY2026_Sales,         true,  "$#,##0"),
@@ -507,7 +520,9 @@
         ("FY24 Qty",          x => x.FY2024_Qty,           true,  "0"),
         ("FY24 Sales",        x => x.FY2024_Sales,         true,  "$#,##0"),
         ("FY23 Qty",          x => x.FY2023_Qty,           true,  "0"),
-        ("FY23 Sales",        x => x.FY2023_Sales,         true,  "$#,##0")
+        ("FY23 Sales",        x => x.FY2023_Sales,         true,  "$#,##0"),
+        ("PCF Price",        x => x.ApprovedPriceDecimal,         true,  "$#,##0.00"),
+        ("STD Margin",        x => x.StandardMargin,         true,  "0.00%")
         };
 
         // -------------- Excel build (unchanged except header list) --------------

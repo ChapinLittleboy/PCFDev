@@ -1294,7 +1294,7 @@ EXEC sp_executesql @query;
         i.ItemDesc,
         i.ProposedPrice as ApprovedPrice
         ,isnull(it.Uf_PrivateLabel,0) as PrivateLabelFlag
-        ,it.Family_Code, fc.Description as FamilyCodeDescription
+        ,it.Family_Code, fc.Description as FamilyCodeDescription, fc.Description as Family_Code_Description
         ,LTRIM(RTRIM(coalesce(h.SRNum, cc.Salesman, ''))) as Salesman
     FROM ProgControl h 
     LEFT JOIN PCItems i 
@@ -1350,7 +1350,9 @@ EXEC sp_executesql @query;
     i.ProposedPrice as ApprovedPrice,
     ISNULL(it.Uf_PrivateLabel,0) as PrivateLabelFlag,
     it.Family_Code, 
-    fc.Description as FamilyCodeDescription,
+    it.unit_cost as StandardCost,
+    fc.Description as Family_Code_Description,
+  fc.Description as FamilyCodeDescription,
     LTRIM(RTRIM(COALESCE(h.SRNum, cc.Salesman, ''))) as Salesman,
     LTRIM(RTRIM(COALESCE(ca0.Corp_Cust,'N/A'))) as CorpCustNum,
     ISNULL(p.FY2023_Qty, 0) as FY2023_Qty,
@@ -1603,7 +1605,7 @@ JOIN @Keys k
 
                 await connection.ExecuteAsync(sql, dp, tx, commandTimeout: 60);
 
-                // 3) Update ProgControl.EditNotes for this PCF
+                // 3) Update ProgControl.EditNotes for this PCF  NOTE: only updating notes on DELETE item. Marked for delete = no note change.
                 var itemList = string.Join(", ", items);
                 var stamp = DateTime.Now.ToString("yyyy-MM-dd"); // or DateTime.UtcNow if you prefer
                 var appendText = $"  {stamp} Deleted items {itemList} from PCF";
