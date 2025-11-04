@@ -13,6 +13,7 @@ using System.Runtime.Intrinsics.Arm;
 using System.Text;
 using static Dapper.SqlMapper;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using static System.Net.Mime.MediaTypeNames;
 
 
 
@@ -1619,9 +1620,9 @@ WHERE PCFNum = @PCFNum;";
                 );
 
                 // 4) Best-effort: mark 'X' in CMA for these items (if ProgControl.CmaRef present)
-                //await MarkItemsInCmaAsync(connection, tx, pcfNumber, items, ct);  NOT Working
+                //await MarkItemsInCmaAsync(connection, tx, pcfNumber, items, ct);  //Doesn't save anything!
             }
-            d
+            
             tx.Commit();
         }
         catch
@@ -1654,7 +1655,114 @@ WHERE PCFNum = @PCFNum;";
         }
     }
 
+
     private static async Task MarkItemsInCmaAsync(IDbConnection connection, IDbTransaction tx, int pcfNumber,
+     IReadOnlyCollection<string> items, CancellationToken ct)
+    {
+        const string cmaSql = @"SELECT CmaRef FROM ProgControl WHERE PCFNum = @PCFNum;";
+        var cmaRef = await connection.ExecuteScalarAsync<string>(
+            new CommandDefinition(cmaSql, new { PCFNum = pcfNumber.ToString() }, tx, cancellationToken: ct)
+        );
+
+        if (string.IsNullOrWhiteSpace(cmaRef))
+            return;
+
+        // Normalize: remove accidental surrounding quotes and trim whitespace
+       
+            string CMAbasePath;
+            CMAbasePath = "\\\\ciiedi01\\SendDocs\\CMAInbound\\Processed";
+
+
+
+
+            string CMAfullPath = Path.Combine(CMAbasePath, cmaRef);
+            var CMAfilePath = CMAfullPath.Trim().Trim('"');
+
+            // Optional: if your DB stores relative names, resolve to your CMA root folder here
+            // CMAfilePath = Path.Combine(_cmaFolderRoot, CMAfilePath);
+
+            // Sanity checks up-front
+            var dir = Path.GetDirectoryName(CMAfilePath);
+            if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
+            {
+                // log: directory missing
+                return;
+            }
+
+            if (!File.Exists(CMAfilePath))
+            {
+                // log: file missing
+                return;
+            }
+
+          
+                using var excelEngine = new Syncfusion.XlsIO.ExcelEngine();
+                var app = excelEngine.Excel;
+                app.DefaultVersion = ExcelVersion.Excel2016;
+                // OPEN: via stream (your build expects a Stream)
+
+
+                FileStream inputStream = new FileStream(CMAfilePath, FileMode.Open);
+                IWorkbook workbook = app.Workbooks.Open(inputStream);
+
+
+
+
+
+
+                var sheet = workbook.Worksheets[0];
+
+                var used = sheet.UsedRange;
+                var lastRow = used?.LastRow ?? 0;
+                if (lastRow > 0)
+                {
+                    var targets = new HashSet<string>(
+                        items.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()),
+                        StringComparer.OrdinalIgnoreCase);
+
+                    for (int row = 1; row <= lastRow; row++)
+                    {
+                        var val = sheet[row, 2]?.DisplayText; // Column b
+                        if (!string.IsNullOrWhiteSpace(val) && targets.Contains(val.Trim()))
+                        {
+                            sheet[row, 29].Text = "X"; // Column AC = 29
+                        }
+                    }
+                }
+
+                // Save the workbook to a memory stream
+                using (MemoryStream stream = new MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    return;
+                }
+
+     
+
+         
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    private static async Task MarkItemsInCmaAsyncOLD(IDbConnection connection, IDbTransaction tx, int pcfNumber,
         IReadOnlyCollection<string> items, CancellationToken ct)
     {
         const string cmaSql = @"SELECT CmaRef FROM ProgControl WHERE PCFNum = @PCFNum;";
