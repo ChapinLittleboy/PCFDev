@@ -1619,7 +1619,7 @@ WHERE PCFNum = @PCFNum;";
                 );
 
                 // 4) Best-effort: mark 'X' in CMA for these items (if ProgControl.CmaRef present)
-                await MarkItemsInCmaAsync(connection, tx, pcfNumber, items, ct);
+                //await MarkItemsInCmaAsync(connection, tx, pcfNumber, items, ct);  NOT Working
             }
 
             tx.Commit();
@@ -1636,11 +1636,133 @@ WHERE PCFNum = @PCFNum;";
     /// Looks up ProgControl.CmaRef for the given PCF and, if present, opens the workbook with XlsIO,
     /// finds each item in column A (exact match, case-insensitive), and writes "X" to column N of that row.
     /// </summary>
+    private static FileStream OpenForReadWithRetry(string path, int retries = 5, int delayMs = 250)
+    {
+        for (int attempt = 1; ; attempt++)
+        {
+            try
+            {
+                // Read-only, allow others to read/write while we read
+                return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            }
+            catch (IOException ioEx) when (attempt < retries)
+            {
+                // Common when another process briefly holds a lock; small backoff then retry
+                Thread.Sleep(delayMs);
+                continue;
+            }
+        }
+    }
 
-    private static async Task MarkItemsInCmaAsync(IDbConnection connection, IDbTransaction tx, int pcfNumber, IReadOnlyCollection<string> items, CancellationToken ct)
+    private static async Task MarkItemsInCmaAsync(IDbConnection connection, IDbTransaction tx, int pcfNumber,
+        IReadOnlyCollection<string> items, CancellationToken ct)
+    {
+        const string cmaSql = @"SELECT CmaRef FROM ProgControl WHERE PCFNum = @PCFNum;";
+        var cmaRef = await connection.ExecuteScalarAsync<string>(
+            new CommandDefinition(cmaSql, new { PCFNum = pcfNumber.ToString() }, tx, cancellationToken: ct)
+        );
+
+        if (string.IsNullOrWhiteSpace(cmaRef))
+            return;
+
+        // Normalize: remove accidental surrounding quotes and trim whitespace
+        {
+            string CMAbasePath;
+            CMAbasePath = "\\\\ciiedi01\\SendDocs\\CMAInbound\\Processed";
+
+
+
+
+            string CMAfullPath = Path.Combine(CMAbasePath, cmaRef);
+            var CMAfilePath = CMAfullPath.Trim().Trim('"');
+
+            // Optional: if your DB stores relative names, resolve to your CMA root folder here
+            // CMAfilePath = Path.Combine(_cmaFolderRoot, CMAfilePath);
+
+            // Sanity checks up-front
+            var dir = Path.GetDirectoryName(CMAfilePath);
+            if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
+            {
+                // log: directory missing
+                return;
+            }
+
+            if (!File.Exists(CMAfilePath))
+            {
+                // log: file missing
+                return;
+            }
+
+            try
+            {
+                using var excelEngine = new Syncfusion.XlsIO.ExcelEngine();
+                var app = excelEngine.Excel;
+
+                // OPEN: via stream (your build expects a Stream)
+                using (var input = OpenForReadWithRetry(CMAfilePath))
+                {
+                    var workbook = app.Workbooks.Open(input, ExcelOpenType.Automatic);
+                    var sheet = workbook.Worksheets[0];
+
+                    var used = sheet.UsedRange;
+                    var lastRow = used?.LastRow ?? 0;
+                    if (lastRow > 0)
+                    {
+                        var targets = new HashSet<string>(
+                            items.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()),
+                            StringComparer.OrdinalIgnoreCase);
+
+                        for (int row = 1; row <= lastRow; row++)
+                        {
+                            var val = sheet[row, 2]?.DisplayText; // Column b
+                            if (!string.IsNullOrWhiteSpace(val) && targets.Contains(val.Trim()))
+                            {
+                                sheet[row, 29].Text = "X"; // Column AC = 29
+                            }
+                        }
+                    }
+
+                    // SAVE: close the read stream before writing back
+                    input.Dispose();
+
+                    //workbook.Version = ExcelVersion.Xlsx;
+                    using (var output = new FileStream(CMAfilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite,
+                               FileShare.Read))
+                    {
+                        workbook.SaveAs(output);
+                    }
+
+                    workbook.Close();
+                }
+            }
+            catch (UnauthorizedAccessException uae)
+            {
+                // log the identity and path to confirm permissions
+                // e.g., log: $"No access to {CMAfilePath}. User: {WindowsIdentity.GetCurrent()?.Name}. {uae}"
+                return;
+            }
+            catch (DirectoryNotFoundException dnfe)
+            {
+                // log: $"Directory not found for {CMAfilePath}: {dnfe}"
+                return;
+            }
+            catch (PathTooLongException ptle)
+            {
+                // log: $"Path too long for {CMAfilePath}: {ptle}"
+                return;
+            }
+            catch (IOException ioex)
+            {
+                // log: $"I/O error on {CMAfilePath}: {ioex}"
+                return;
+            }
+        }
+    }
+
+    private static async Task MarkItemsInCmaAsyncBAD(IDbConnection connection, IDbTransaction tx, int pcfNumber, IReadOnlyCollection<string> items, CancellationToken ct)
     {
     string CMAbasePath;
-    CMAbasePath = "C:\\SharedUploads";
+    CMAbasePath = "\\\\ciiedi01\\SendDocs\\CMAInbound\\Processed";
 
 
 
@@ -1674,7 +1796,7 @@ WHERE PCFNum = @PCFNum;";
 
                 for (int row = 1; row <= lastRow; row++)
                 {
-                    var val = sheet[row, 1]?.DisplayText; // Column A
+                    var val = sheet[row, 2]?.DisplayText; // Column A
                     if (!string.IsNullOrWhiteSpace(val) && targets.Contains(val.Trim()))
                     {
                         sheet[row, 29].Text = "X";        // Column AC = 29
