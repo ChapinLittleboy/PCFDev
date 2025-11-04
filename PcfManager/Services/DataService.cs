@@ -4,6 +4,7 @@ using Microsoft.Data.SqlClient;
 using PcfManager.Data;
 using PcfManager.Models;
 using Syncfusion.Blazor.RichTextEditor;
+using Syncfusion.XlsIO;
 using System.Data;
 using System.Drawing;
 using System.Dynamic;
@@ -27,6 +28,8 @@ public class DataService
     private readonly ILogger<DataService> _logger;
 
 
+
+
     public DataService(DbConnectionFactory dbConnectionFactory, IUserService userService, IMapper mapper,
         IConfiguration configuration, ILogger<DataService> logger)
     {
@@ -35,6 +38,8 @@ public class DataService
         _mapper = mapper;
         _configuration = configuration;
         _logger = logger;
+      
+
     }
 
     public async Task<List<ExpandoObject>> GetDynamicSLDataAsync(string query)
@@ -1336,6 +1341,7 @@ EXEC sp_executesql @query;
     h.Promo_Terms_Text as PromoPaymentTermsText,
     h.Standard_Freight_Terms as PromoFreightTerms,
     h.Freight_Minimums as FreightMinimums,
+h.CmaRef,
     cc.SalesManager,
     cc.AddressLine1 as BillToAddress,
     cc.City as BillToCity,
@@ -1511,8 +1517,7 @@ WHERE im.active_for_customer_portal = 1
 
     }
 
-
-    public async Task RemoveItemsFromPCFAsync(IEnumerable<object> keys)
+    public async Task RemoveItemsFromPCFAsync(IEnumerable<object> keys, CancellationToken ct = default)
     {
         if (keys is null)
             throw new ArgumentNullException(nameof(keys));
@@ -1532,20 +1537,18 @@ WHERE im.active_for_customer_portal = 1
 
             var pcfVal = pcfProp.GetValue(k);
             var itemVal = itemProp.GetValue(k);
-
             if (pcfVal is null || itemVal is null)
                 continue;
 
             keyPairs.Add(((int)Convert.ChangeType(pcfVal, typeof(int)),
-                (string)Convert.ChangeType(itemVal, typeof(string))));
+                          (string)Convert.ChangeType(itemVal, typeof(string))));
         }
 
         if (keyPairs.Count == 0)
             return;
 
         using var connection = _dbConnectionFactory.CreateReadWriteConnection(_userService.CurrentPCFDatabaseName);
-        if (connection.State != ConnectionState.Open)
-            connection.Open();
+       
 
         using var tx = connection.BeginTransaction();
 
@@ -1557,11 +1560,12 @@ WHERE im.active_for_customer_portal = 1
             foreach (var grp in groups)
             {
                 var pcfNumber = grp.Key;
-                var items = grp.Select(x => x.ItemNum).Distinct().ToList();
+                var items = grp.Select(x => x.ItemNum).Where(s => !string.IsNullOrWhiteSpace(s))
+                               .Select(s => s.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 if (items.Count == 0)
                     continue;
 
-                // Build a VALUES list for a table variable using fully-parameterized values
+                // Build fully-parameterized VALUES list for a table variable
                 var valuesSb = new StringBuilder();
                 var dp = new DynamicParameters();
 
@@ -1579,14 +1583,9 @@ WHERE im.active_for_customer_portal = 1
                     i++;
                 }
 
-                // Optional metadata for archive (if you have these columns; otherwise remove them)
-                // Example: if PCItems_DeletedArchive has extra columns like DeletedOnUtc, DeletedReason, DeletedBy
-                // you can add them in the SELECT with literals. Here we assume schemas match 1:1.
-                Console.WriteLine(valuesSb);
                 var sql = $@"
 DECLARE @Keys TABLE (PCFNumber INT, ItemNum NVARCHAR(100));
 INSERT INTO @Keys (PCFNumber, ItemNum) VALUES {valuesSb};
-
 
 -- 1) Archive first
 INSERT INTO PCItems_DeletedArchive
@@ -1603,23 +1602,24 @@ JOIN @Keys k
   ON k.PCFNumber = pi.PCFNumber
  AND k.ItemNum    = pi.ItemNum;";
 
-                await connection.ExecuteAsync(sql, dp, tx, commandTimeout: 60);
+                await connection.ExecuteAsync(new CommandDefinition(sql, dp, tx, 60, cancellationToken: ct));
 
-                // 3) Update ProgControl.EditNotes for this PCF  NOTE: only updating notes on DELETE item. Marked for delete = no note change.
+                // 3) Update ProgControl.EditNotes for this PCF
                 var itemList = string.Join(", ", items);
-                var stamp = DateTime.Now.ToString("yyyy-MM-dd"); // or DateTime.UtcNow if you prefer
+                var stamp = DateTime.Now.ToString("yyyy-MM-dd");
                 var appendText = $"  {stamp} Deleted items {itemList} from PCF";
-
-                // PCFNum in ProgControl is a string key
-                var pcfStringKey = pcfNumber.ToString();
 
                 var updateNotesSql = @"
 UPDATE ProgControl
 SET EditNotes = COALESCE(EditNotes, '') + @AppendText
 WHERE PCFNum = @PCFNum;";
 
-                await connection.ExecuteAsync(updateNotesSql,
-                    new { AppendText = appendText, PCFNum = pcfStringKey }, tx);
+                await connection.ExecuteAsync(
+                    new CommandDefinition(updateNotesSql, new { AppendText = appendText, PCFNum = pcfNumber.ToString() }, tx, cancellationToken: ct)
+                );
+
+                // 4) Best-effort: mark 'X' in CMA for these items (if ProgControl.CmaRef present)
+                await MarkItemsInCmaAsync(connection, tx, pcfNumber, items, ct);
             }
 
             tx.Commit();
@@ -1632,6 +1632,78 @@ WHERE PCFNum = @PCFNum;";
     }
 
 
+    /// <summary>
+    /// Looks up ProgControl.CmaRef for the given PCF and, if present, opens the workbook with XlsIO,
+    /// finds each item in column A (exact match, case-insensitive), and writes "X" to column N of that row.
+    /// </summary>
+
+    private static async Task MarkItemsInCmaAsync(IDbConnection connection, IDbTransaction tx, int pcfNumber, IReadOnlyCollection<string> items, CancellationToken ct)
+    {
+    string CMAbasePath;
+    CMAbasePath = "C:\\SharedUploads";
+
+
+
+        const string cmaSql = @"SELECT CmaRef FROM ProgControl WHERE PCFNum = @PCFNum;";
+        var cmaRef = await connection.ExecuteScalarAsync<string>(
+            new CommandDefinition(cmaSql, new { PCFNum = pcfNumber.ToString() }, tx, cancellationToken: ct)
+        );
+        string CMAfilePath =  Path.Combine(CMAbasePath, cmaRef);
+
+        if (string.IsNullOrWhiteSpace(cmaRef))
+            return;
+        if (!File.Exists(cmaRef))
+            return;
+
+        using var excelEngine = new ExcelEngine();
+        var app = excelEngine.Excel;
+
+        // 1) OPEN from a stream (this API expects Stream in many builds)
+        using (var input = new FileStream(CMAfilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        {
+            var workbook = app.Workbooks.Open(input, ExcelOpenType.Automatic);
+
+            var sheet = workbook.Worksheets[0];           // or Worksheets["YourSheetName"]
+            var used = sheet.UsedRange;
+            var lastRow = used?.LastRow ?? 0;
+            if (lastRow > 0)
+            {
+                var targets = new HashSet<string>(items.Where(s => !string.IsNullOrWhiteSpace(s))
+                                                       .Select(s => s.Trim()),
+                                                   StringComparer.OrdinalIgnoreCase);
+
+                for (int row = 1; row <= lastRow; row++)
+                {
+                    var val = sheet[row, 1]?.DisplayText; // Column A
+                    if (!string.IsNullOrWhiteSpace(val) && targets.Contains(val.Trim()))
+                    {
+                        sheet[row, 29].Text = "X";        // Column AC = 29
+                    }
+                }
+            }
+
+            // 2) SAVE back to the same file via a new stream + SaveAs(...)
+            workbook.Version = ExcelVersion.Xlsx; // match your .xlsx
+            input.Dispose();                       // close read stream before writing
+
+            using (var output = new FileStream(CMAfilePath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read))
+            {
+                workbook.SaveAs(output);
+            }
+
+            workbook.Close(); // IWorkbook isn't IDisposable; close explicitly
+        }
+    }
+
+
+
+
+
+
+
+
+
+    
     public async Task MarkItemsForDeletionAsync(IEnumerable<object> laterRequests)
     {
         if (laterRequests is null)

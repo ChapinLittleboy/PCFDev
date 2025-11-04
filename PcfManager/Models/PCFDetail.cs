@@ -39,6 +39,7 @@ public class PCFDetail
     public string? StandardFreightTerms { get; set; }
 
     public string? StandardFreightMinimums { get; set; }
+    public string? CmaFileName { get; set; }
 
     public decimal FY2023_Qty { get; set; }
         public decimal FY2024_Qty { get; set; }
@@ -61,7 +62,7 @@ public class PCFDetail
     {
         get
         {
-            // Return null if we can’t calculate
+            // Return null if we can’t calculate        
             if ( ApprovedPriceDecimal == 0)
                 return null;
 
