@@ -1620,7 +1620,7 @@ WHERE PCFNum = @PCFNum;";
                 );
 
                 // 4) Best-effort: mark 'X' in CMA for these items (if ProgControl.CmaRef present)
-                //await MarkItemsInCmaAsync(connection, tx, pcfNumber, items, ct);  //Doesn't save anything!
+                await MarkItemsInCmaAsync(connection, tx, pcfNumber, items, ct);  //Doesn't save anything!
             }
             
             tx.Commit();
@@ -1656,272 +1656,89 @@ WHERE PCFNum = @PCFNum;";
     }
 
 
-    private static async Task MarkItemsInCmaAsync(IDbConnection connection, IDbTransaction tx, int pcfNumber,
-     IReadOnlyCollection<string> items, CancellationToken ct)
+    private static async Task MarkItemsInCmaAsync(
+     IDbConnection connection,
+     IDbTransaction tx,
+     int pcfNumber,
+     IReadOnlyCollection<string> items,
+     CancellationToken ct)
     {
         const string cmaSql = @"SELECT CmaRef FROM ProgControl WHERE PCFNum = @PCFNum;";
         var cmaRef = await connection.ExecuteScalarAsync<string>(
-            new CommandDefinition(cmaSql, new { PCFNum = pcfNumber.ToString() }, tx, cancellationToken: ct)
-        );
+            new CommandDefinition(cmaSql, new { PCFNum = pcfNumber.ToString() }, tx, cancellationToken: ct));
 
         if (string.IsNullOrWhiteSpace(cmaRef))
             return;
 
-        // Normalize: remove accidental surrounding quotes and trim whitespace
-       
-            string CMAbasePath;
-            CMAbasePath = "\\\\ciiedi01\\SendDocs\\CMAInbound\\Processed";
+        // Base path + file name from DB
+        string cmaBasePath = @"\\ciiedi01\SendDocs\CMAInbound\Processed";
+        string cmaFullPath = Path.Combine(cmaBasePath, cmaRef);
+        string cmaFilePath = cmaFullPath.Trim().Trim('"');
 
+        // Sanity checks
+        var dir = Path.GetDirectoryName(cmaFilePath);
+        if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
+            return; // directory missing
 
+        if (!File.Exists(cmaFilePath))
+            return; // file missing
 
+        // Normalize targets (case-insensitive)
+        var targets = new HashSet<string>(
+            items.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()),
+            StringComparer.OrdinalIgnoreCase);
 
-            string CMAfullPath = Path.Combine(CMAbasePath, cmaRef);
-            var CMAfilePath = CMAfullPath.Trim().Trim('"');
-
-            // Optional: if your DB stores relative names, resolve to your CMA root folder here
-            // CMAfilePath = Path.Combine(_cmaFolderRoot, CMAfilePath);
-
-            // Sanity checks up-front
-            var dir = Path.GetDirectoryName(CMAfilePath);
-            if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
-            {
-                // log: directory missing
-                return;
-            }
-
-            if (!File.Exists(CMAfilePath))
-            {
-                // log: file missing
-                return;
-            }
-
-          
-                using var excelEngine = new Syncfusion.XlsIO.ExcelEngine();
-                var app = excelEngine.Excel;
-                app.DefaultVersion = ExcelVersion.Excel2016;
-                // OPEN: via stream (your build expects a Stream)
-
-
-                FileStream inputStream = new FileStream(CMAfilePath, FileMode.Open);
-                IWorkbook workbook = app.Workbooks.Open(inputStream);
-
-
-
-
-
-
-                var sheet = workbook.Worksheets[0];
-
-                var used = sheet.UsedRange;
-                var lastRow = used?.LastRow ?? 0;
-                if (lastRow > 0)
-                {
-                    var targets = new HashSet<string>(
-                        items.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()),
-                        StringComparer.OrdinalIgnoreCase);
-
-                    for (int row = 1; row <= lastRow; row++)
-                    {
-                        var val = sheet[row, 2]?.DisplayText; // Column b
-                        if (!string.IsNullOrWhiteSpace(val) && targets.Contains(val.Trim()))
-                        {
-                            sheet[row, 29].Text = "X"; // Column AC = 29
-                        }
-                    }
-                }
-
-                // Save the workbook to a memory stream
-                using (MemoryStream stream = new MemoryStream())
-                {
-                    workbook.SaveAs(stream);
-                    return;
-                }
-
-     
-
-         
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    private static async Task MarkItemsInCmaAsyncOLD(IDbConnection connection, IDbTransaction tx, int pcfNumber,
-        IReadOnlyCollection<string> items, CancellationToken ct)
-    {
-        const string cmaSql = @"SELECT CmaRef FROM ProgControl WHERE PCFNum = @PCFNum;";
-        var cmaRef = await connection.ExecuteScalarAsync<string>(
-            new CommandDefinition(cmaSql, new { PCFNum = pcfNumber.ToString() }, tx, cancellationToken: ct)
-        );
-
-        if (string.IsNullOrWhiteSpace(cmaRef))
+        if (targets.Count == 0)
             return;
 
-        // Normalize: remove accidental surrounding quotes and trim whitespace
+        // Columns: A (1) contains ItemNum; N (14) is where we write "X"
+        const int SOURCE_COL = 2; // B
+        const int MARK_COL = 29; // AC
+
+        // Open, edit, and overwrite the file
+        using (var excelEngine = new Syncfusion.XlsIO.ExcelEngine())
         {
-            string CMAbasePath;
-            CMAbasePath = "\\\\ciiedi01\\SendDocs\\CMAInbound\\Processed";
+            var app = excelEngine.Excel;
+            app.DefaultVersion = ExcelVersion.Excel2016;
 
-
-
-
-            string CMAfullPath = Path.Combine(CMAbasePath, cmaRef);
-            var CMAfilePath = CMAfullPath.Trim().Trim('"');
-
-            // Optional: if your DB stores relative names, resolve to your CMA root folder here
-            // CMAfilePath = Path.Combine(_cmaFolderRoot, CMAfilePath);
-
-            // Sanity checks up-front
-            var dir = Path.GetDirectoryName(CMAfilePath);
-            if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
+            // Load workbook from a read-only stream
+            using (var input = new FileStream(cmaFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
-                // log: directory missing
-                return;
-            }
-
-            if (!File.Exists(CMAfilePath))
-            {
-                // log: file missing
-                return;
-            }
-
-            try
-            {
-                using var excelEngine = new Syncfusion.XlsIO.ExcelEngine();
-                var app = excelEngine.Excel;
-
-                // OPEN: via stream (your build expects a Stream)
-                using (var input = OpenForReadWithRetry(CMAfilePath))
+                IWorkbook workbook = app.Workbooks.Open(input);
+                try
                 {
-                    var workbook = app.Workbooks.Open(input, ExcelOpenType.Automatic);
                     var sheet = workbook.Worksheets[0];
 
-                    var used = sheet.UsedRange;
-                    var lastRow = used?.LastRow ?? 0;
+                    // UsedRange can be read once, then loop with LastRow
+                    int lastRow = sheet.UsedRange?.LastRow ?? 0; // defensive
                     if (lastRow > 0)
                     {
-                        var targets = new HashSet<string>(
-                            items.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()),
-                            StringComparer.OrdinalIgnoreCase);
+                        // If there is a header row, start at 2; otherwise start at 1
+                        int startRow = 2;
 
-                        for (int row = 1; row <= lastRow; row++)
+                        for (int row = startRow; row <= lastRow; row++)
                         {
-                            var val = sheet[row, 2]?.DisplayText; // Column b
-                            if (!string.IsNullOrWhiteSpace(val) && targets.Contains(val.Trim()))
+                            var cellText = sheet[row, SOURCE_COL]?.DisplayText;
+                            if (!string.IsNullOrWhiteSpace(cellText) && targets.Contains(cellText.Trim()))
                             {
-                                sheet[row, 29].Text = "X"; // Column AC = 29
+                                sheet[row, MARK_COL].Text = "X";
                             }
                         }
                     }
 
-                    // SAVE: close the read stream before writing back
-                    input.Dispose();
-
-                    //workbook.Version = ExcelVersion.Xlsx;
-                    using (var output = new FileStream(CMAfilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite,
-                               FileShare.Read))
+                    // IMPORTANT: Save back to the SAME file by creating a write stream and SaveAs
+                    // This is the pattern XlsIO documents for ASP.NET/Blazor scenarios.
+                    using (var output = new FileStream(cmaFilePath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read))
                     {
                         workbook.SaveAs(output);
                     }
-
+                }
+                finally
+                {
                     workbook.Close();
                 }
             }
-            catch (UnauthorizedAccessException uae)
-            {
-                // log the identity and path to confirm permissions
-                // e.g., log: $"No access to {CMAfilePath}. User: {WindowsIdentity.GetCurrent()?.Name}. {uae}"
-                return;
-            }
-            catch (DirectoryNotFoundException dnfe)
-            {
-                // log: $"Directory not found for {CMAfilePath}: {dnfe}"
-                return;
-            }
-            catch (PathTooLongException ptle)
-            {
-                // log: $"Path too long for {CMAfilePath}: {ptle}"
-                return;
-            }
-            catch (IOException ioex)
-            {
-                // log: $"I/O error on {CMAfilePath}: {ioex}"
-                return;
-            }
-        }
-    }
-
-    private static async Task MarkItemsInCmaAsyncBAD(IDbConnection connection, IDbTransaction tx, int pcfNumber, IReadOnlyCollection<string> items, CancellationToken ct)
-    {
-    string CMAbasePath;
-    CMAbasePath = "\\\\ciiedi01\\SendDocs\\CMAInbound\\Processed";
-
-
-
-        const string cmaSql = @"SELECT CmaRef FROM ProgControl WHERE PCFNum = @PCFNum;";
-        var cmaRef = await connection.ExecuteScalarAsync<string>(
-            new CommandDefinition(cmaSql, new { PCFNum = pcfNumber.ToString() }, tx, cancellationToken: ct)
-        );
-        string CMAfilePath =  Path.Combine(CMAbasePath, cmaRef);
-
-        if (string.IsNullOrWhiteSpace(cmaRef))
-            return;
-        if (!File.Exists(cmaRef))
-            return;
-
-        using var excelEngine = new ExcelEngine();
-        var app = excelEngine.Excel;
-
-        // 1) OPEN from a stream (this API expects Stream in many builds)
-        using (var input = new FileStream(CMAfilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-        {
-            var workbook = app.Workbooks.Open(input, ExcelOpenType.Automatic);
-
-            var sheet = workbook.Worksheets[0];           // or Worksheets["YourSheetName"]
-            var used = sheet.UsedRange;
-            var lastRow = used?.LastRow ?? 0;
-            if (lastRow > 0)
-            {
-                var targets = new HashSet<string>(items.Where(s => !string.IsNullOrWhiteSpace(s))
-                                                       .Select(s => s.Trim()),
-                                                   StringComparer.OrdinalIgnoreCase);
-
-                for (int row = 1; row <= lastRow; row++)
-                {
-                    var val = sheet[row, 2]?.DisplayText; // Column A
-                    if (!string.IsNullOrWhiteSpace(val) && targets.Contains(val.Trim()))
-                    {
-                        sheet[row, 29].Text = "X";        // Column AC = 29
-                    }
-                }
-            }
-
-            // 2) SAVE back to the same file via a new stream + SaveAs(...)
-            workbook.Version = ExcelVersion.Xlsx; // match your .xlsx
-            input.Dispose();                       // close read stream before writing
-
-            using (var output = new FileStream(CMAfilePath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read))
-            {
-                workbook.SaveAs(output);
-            }
-
-            workbook.Close(); // IWorkbook isn't IDisposable; close explicitly
+            // excelEngine disposed here
         }
     }
 
@@ -1932,8 +1749,6 @@ WHERE PCFNum = @PCFNum;";
 
 
 
-
-    
     public async Task MarkItemsForDeletionAsync(IEnumerable<object> laterRequests)
     {
         if (laterRequests is null)
