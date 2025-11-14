@@ -19,7 +19,8 @@ using PcfManager.Infrastructure;
 
 
 //Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense("Ngo9BigBOggjHTQxAR8/V1NDaF5cWWtCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdnWXZccHVWQ2NZUkd+XkA="); // was working
-Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense("NDA5NjAxOUAzMjM3MmUzMDJlMzBaRmNUdG00bFYxSlBQd1hFUUVSVmFJQVkvSEt3V3ZyNDZYNmllYU5OZm9BPQ==");  // v27 Blazor only
+//Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense("NDA5NjAxOUAzMjM3MmUzMDJlMzBaRmNUdG00bFYxSlBQd1hFUUVSVmFJQVkvSEt3V3ZyNDZYNmllYU5OZm9BPQ==");  // v27 Blazor only
+Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense("Ngo9BigBOggjHTQxAR8/V1NDaF5cWWtCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdmWH5fcXRdRWdeUkx0X0VWYU4=");  // v27 Blazor only
 var builder = WebApplication.CreateBuilder(args);
 if (builder.Environment.IsProduction())
 {

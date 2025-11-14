@@ -1721,7 +1721,8 @@ WHERE PCFNum = @PCFNum;";
                             var cellText = sheet[row, SOURCE_COL]?.DisplayText;
                             if (!string.IsNullOrWhiteSpace(cellText) && targets.Contains(cellText.Trim()))
                             {
-                                sheet[row, MARK_COL].Text = "X";
+                                sheet[row, MARK_COL].Text += $" Item deleted from PCF on {DateTime.Now:yyyy-MM-dd}";
+
                             }
                         }
                     }

@@ -43,14 +43,14 @@
 </div>
 
 
-<SfGrid ID="PcfsDetGrid" @ref="MyDetGrid" DataSource="@pcfDetails" AllowSorting="true" AllowPaging="true" AllowFiltering="true"
+<SfGrid ID="DetRptGrid" @ref="MyDetGrid" DataSource="@pcfDetails" AllowSorting="true" AllowPaging="true" AllowFiltering="true"
         AllowExcelExport="true" 
         Toolbar="ToolbarItems"
         AllowReordering="true" AllowResizing="true"
         AllowTextWrap="true"
         EnablePersistence="false"
         ShowColumnChooser="true"
-        AllowGrouping="true" Height="auto" Width="90%">
+        AllowGrouping="false" Height="auto" Width="90%">
     <GridTextWrapSettings WrapMode="WrapMode.Header" />
     <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel">
         <GridFilterColumns>
@@ -65,31 +65,8 @@
         <GridColumn Field="CustomerNumber" HeaderText="Customer #" Width="120" />
         <GridColumn Field="CustomerName" HeaderText="Customer Name" Width="200" />
         <GridColumn Field="CorpCustNum" HeaderText="Corp Cust Number" Width="120" />
-        <GridColumn Field="StartDate" HeaderText="Start Date" Format="d" Type="ColumnType.Date" Width="120" />
-        <GridColumn Field="EndDate" HeaderText="End Date" Format="d" Type="ColumnType.Date" Width="120" />
-        <GridColumn Field="PCFStatusText" HeaderText="PCF Status" Width="170"></GridColumn>
-        <GridColumn Field="PcfTypeText" HeaderText="Type" Width="220"></GridColumn>
         <GridColumn Field="ItemNum" HeaderText="Item #" Width="120" />
         <GridColumn Field="ItemDesc" HeaderText="Item Description" Width="200" />
-        <GridColumn Field="Family_Code" HeaderText="Family Code" Width="120" />
-        <GridColumn Field="Family_Code_Description" HeaderText="FamCode Description" Width="200" />
-        <GridColumn Field="ItemStatusText" HeaderText="Item Status" Width="160"></GridColumn>
-        <GridColumn Field="PrivateLabelFlag" HeaderText="Private Label" Width="120" />
-        <GridColumn Field="CustNum" HeaderText="Cust #" Width="100" />
-        <GridColumn Field="VPSalesDate" HeaderText="VP Sales Date" Format="d" Type="ColumnType.Date" Width="130" />
-        <GridColumn Field="BuyingGroup" HeaderText="Buying Group" Width="150" />
-        <GridColumn Field="GeneralNotes" HeaderText="Notes" Width="200" />
-        <GridColumn Field="PromoPaymentTermsText" HeaderText="Payment Terms" Width="160" />
-        <GridColumn Field="PromoFreightTerms" HeaderText="Freight Terms" Width="160" />
-        <GridColumn Field="FreightMinimums" HeaderText="Freight Min." Width="130" />
-        <GridColumn Field="SalesManager" HeaderText="Sales Manager" Width="150" />
-        <GridColumn Field="BillToAddress" HeaderText="Bill To Address" Width="200" />
-        <GridColumn Field="BillToCity" HeaderText="City" Width="120" />
-        <GridColumn Field="BTState" HeaderText="State" Width="80" />
-        <GridColumn Field="BTZip" HeaderText="ZIP" Width="100" />
-        <GridColumn Field="EUT" HeaderText="EUT" Width="100" />
-        <GridColumn Field="PCFNumber" HeaderText="PCF Number (Item)" Width="150" />
-
         <GridColumn HeaderText="Delete Now" Width="120" TextAlign="TextAlign.Center" AllowFiltering="false" AllowSorting="false">
             <Template Context="ctx">
                 @{
@@ -117,6 +94,31 @@
                        @onchange="(ChangeEventArgs e) => OnDeleteLaterChanged(row, (bool)e.Value!)" />
             </Template>
         </GridColumn>
+        <GridColumn Field="StartDate" HeaderText="Start Date" Format="d" Type="ColumnType.Date" Width="120" />
+        <GridColumn Field="EndDate" HeaderText="End Date" Format="d" Type="ColumnType.Date" Width="120" />
+        <GridColumn Field="PCFStatusText" HeaderText="PCF Status" Width="170"></GridColumn>
+        <GridColumn Field="PcfTypeText" HeaderText="Type" Width="220"></GridColumn>
+
+        <GridColumn Field="Family_Code" HeaderText="Family Code" Width="120" />
+        <GridColumn Field="Family_Code_Description" HeaderText="FamCode Description" Width="200" />
+        <GridColumn Field="ItemStatusText" HeaderText="Item Status" Width="160"></GridColumn>
+        <GridColumn Field="PrivateLabelFlag" HeaderText="Private Label" Width="120" />
+        <GridColumn Field="CustNum" HeaderText="Cust #" Width="100" />
+        <GridColumn Field="VPSalesDate" HeaderText="VP Sales Date" Format="d" Type="ColumnType.Date" Width="130" />
+        <GridColumn Field="BuyingGroup" HeaderText="Buying Group" Width="150" />
+        <GridColumn Field="GeneralNotes" HeaderText="Notes" Width="200" />
+        <GridColumn Field="PromoPaymentTermsText" HeaderText="Payment Terms" Width="160" />
+        <GridColumn Field="PromoFreightTerms" HeaderText="Freight Terms" Width="160" />
+        <GridColumn Field="FreightMinimums" HeaderText="Freight Min." Width="130" />
+        <GridColumn Field="SalesManager" HeaderText="Sales Manager" Width="150" />
+        <GridColumn Field="BillToAddress" HeaderText="Bill To Address" Width="200" />
+        <GridColumn Field="BillToCity" HeaderText="City" Width="120" />
+        <GridColumn Field="BTState" HeaderText="State" Width="80" />
+        <GridColumn Field="BTZip" HeaderText="ZIP" Width="100" />
+        <GridColumn Field="EUT" HeaderText="EUT" Width="100" />
+        <GridColumn Field="PCFNumber" HeaderText="PCF Number (Item)" Width="150" />
+
+
         <GridColumn Field="FY2023_Qty" HeaderText="FY23 Qty"
                     Type="ColumnType.Number" Format="N0" TextAlign="TextAlign.Right" Width="130" />
         <GridColumn Field="FY2024_Qty" HeaderText="FY24 Qty"
@@ -171,7 +173,7 @@
     // name -> persisted JSON
     private Dictionary<string, string> savedLayouts = new();
     // Storage key for all named layouts for this grid
-    private const string LayoutsStoreKey = "PcfsGridLayouts"; // change if you rename the grid
+    private const string LayoutsStoreKey = "DetRptGridLayouts"; // change if you rename the grid
     private bool firstRender = true;
     //[Inject] public Blazored.LocalStorage.ILocalStorageService LocalStorage { get; set; }
     private Dictionary<(int Pcf, string Item), bool> _originalDeleteLater = new();
@@ -984,7 +986,7 @@
 
     public async Task ToolbarClickHandler(Syncfusion.Blazor.Navigations.ClickEventArgs args)
     {
-        if (args.Item.Id == "PcfsDetGrid_excelexport") //Id is combination of Grid's ID and itemname
+        if (args.Item.Id == "DetRptGrid_excelexport") //Id is combination of Grid's ID and itemname
         {
             var ExcelFileName = $"PCFReport.xlsx";
             ExcelExportProperties exportProperties = new ExcelExportProperties
@@ -1125,8 +1127,8 @@
         if (!string.IsNullOrWhiteSpace(selectedLayoutName) &&
             savedLayouts.TryGetValue(selectedLayoutName, out var json))
         {
-            await MyDetGrid.SetPersistDataAsync(json);
-            await MyDetGrid.Refresh();
+           @*  await MyDetGrid.SetPersistDataAsync(json);
+            await MyDetGrid.Refresh(); *@
         }
     }
 
@@ -1257,7 +1259,7 @@
     }
 
     /* Make the grid wider than narrow screens so scrolling kicks in */
-    :deep(#PcfsDetGrid.e-grid) {
+    :deep(#DetRptGrid.e-grid) {
         min-width: 1000px; /* adjust to whatever fits your columns */
     }
     .e-btngrp-watch::before {
