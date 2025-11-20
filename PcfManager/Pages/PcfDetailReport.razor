@@ -48,9 +48,9 @@
         Toolbar="ToolbarItems"
         AllowReordering="true" AllowResizing="true"
         AllowTextWrap="true"
-        EnablePersistence="false"
+        EnablePersistence="true"
         ShowColumnChooser="true"
-        AllowGrouping="false" Height="auto" Width="90%">
+        AllowGrouping="true" Height="auto" Width="90%">
     <GridTextWrapSettings WrapMode="WrapMode.Header" />
     <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel">
         <GridFilterColumns>
@@ -100,10 +100,10 @@
         <GridColumn Field="PcfTypeText" HeaderText="Type" Width="220"></GridColumn>
 
         <GridColumn Field="Family_Code" HeaderText="Family Code" Width="120" />
-        <GridColumn Field="Family_Code_Description" HeaderText="FamCode Description" Width="200" />
+       
         <GridColumn Field="ItemStatusText" HeaderText="Item Status" Width="160"></GridColumn>
         <GridColumn Field="PrivateLabelFlag" HeaderText="Private Label" Width="120" />
-        <GridColumn Field="CustNum" HeaderText="Cust #" Width="100" />
+      
         <GridColumn Field="VPSalesDate" HeaderText="VP Sales Date" Format="d" Type="ColumnType.Date" Width="130" />
         <GridColumn Field="BuyingGroup" HeaderText="Buying Group" Width="150" />
         <GridColumn Field="GeneralNotes" HeaderText="Notes" Width="200" />
@@ -111,13 +111,17 @@
         <GridColumn Field="PromoFreightTerms" HeaderText="Freight Terms" Width="160" />
         <GridColumn Field="FreightMinimums" HeaderText="Freight Min." Width="130" />
         <GridColumn Field="SalesManager" HeaderText="Sales Manager" Width="150" />
+        
         <GridColumn Field="BillToAddress" HeaderText="Bill To Address" Width="200" />
         <GridColumn Field="BillToCity" HeaderText="City" Width="120" />
         <GridColumn Field="BTState" HeaderText="State" Width="80" />
         <GridColumn Field="BTZip" HeaderText="ZIP" Width="100" />
         <GridColumn Field="EUT" HeaderText="EUT" Width="100" />
-        <GridColumn Field="PCFNumber" HeaderText="PCF Number (Item)" Width="150" />
-
+        @*Note:  Having too many columns disables persistence.  These were removed to enable it.  *@
+        @*    <GridColumn Field="PCFNumber" HeaderText="PCF Number (Item)" Width="150" />  
+              <GridColumn Field="CustNum" HeaderText="Cust #" Width="100" />
+               <GridColumn Field="Family_Code_Description" HeaderText="FamCode Description" Width="200" />
+        *@
 
         <GridColumn Field="FY2023_Qty" HeaderText="FY23 Qty"
                     Type="ColumnType.Number" Format="N0" TextAlign="TextAlign.Right" Width="130" />
@@ -214,6 +218,7 @@
         // If there are multiple Uid groups, the grid ANDs them.
         return string.Join(" AND ", groups);
     }
+
     private string GetCorpCustFilterSimple()
     {
         var cols = MyDetGrid?.FilterSettings?.Columns?
@@ -1111,7 +1116,7 @@
     private static string BuildResultMessage(int nowCount, int laterCount)
         => $"Deleted now: {nowCount}, queued for later: {laterCount}.";
 
-    private async Task SaveLayoutAs()
+    /*private async Task SaveLayoutAs()
     {
         if (string.IsNullOrWhiteSpace(newLayoutName)) return;
 
@@ -1121,7 +1126,8 @@
         selectedLayoutName = newLayoutName.Trim();
         newLayoutName = string.Empty;
     }
-
+    */
+    /*
     private async Task ApplySelectedLayout()
     {
         if (!string.IsNullOrWhiteSpace(selectedLayoutName) &&
@@ -1131,7 +1137,8 @@
             await MyDetGrid.Refresh(); *@
         }
     }
-
+    */
+    /*
     private async Task ResetToDefault()
     {
         // Option A: apply the captured default JSON
@@ -1144,7 +1151,7 @@
         // Option B (optional): also clear Syncfusion’s own localStorage entry for this grid
         // await JS.InvokeVoidAsync("pcfGrid.clearSyncfusionPersistence", "PcfsGrid");
     }
-
+    */
     private async Task PrintVisibleColumns()
     {
         if (MyDetGrid != null)
