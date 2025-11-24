@@ -370,8 +370,350 @@
         await this.MyDetGrid.ExportToExcelAsync(exportProperties);
     }
 
-
     private async Task ExportReviewFormat()
+    {
+        // Pick file name based on CorpCust filter.
+        string ExcelFileName;
+        if (IsCorpCustFiltered())
+        {
+            var filterCorp = GetCorpCustFilterSimple();
+            ExcelFileName = $"PCFReviews CorpCust {filterCorp}.xlsx";
+        }
+        else
+        {
+            ExcelFileName = "PCFReviews.xlsx";
+        }
+
+        // Use the grid's current view so filters/search/paging are honored.
+        var viewObjects = await MyDetGrid.GetCurrentViewRecordsAsync();
+
+        var filtered = viewObjects
+            .OfType<PCFDetail>()
+            .ToList();
+
+        var ps = MyDetGrid.PageSettings.PageSize;
+        if (ps < MyDetGrid.TotalItemCount)
+        {
+            ToastObj.Content = "You must set Number of Items per page to a higher number";
+            ToastObj.CssClass = "e-toast-warning";
+            await ToastObj.ShowAsync();
+            return;
+        }
+
+        if (filtered.Count == 0)
+        {
+            await JS.InvokeVoidAsync("alert", "No filtered rows to export.");
+            return;
+        }
+
+        // ================== ENRICHMENT BLOCK ==================
+        // Goal:
+        //  - Compute Promo fields per business rule:
+        //      if PcfType != "PD" && PcfType != "PW" => "Not applicable"
+        //      else use existing PromoFreightTerms and FreightMinimums (promo min)
+        //  - Fill Standard fields from CustomerService:
+        //      StandardFreightTerms     <- CustomerInfo.FreightTerms
+        //      StandardFreightMinimums  <- CustomerInfo.FreightMinimums
+        //
+        // PCFDetail should include:
+        //   public string? StandardFreightTerms { get; set; }
+        //   public string? StandardFreightMinimums { get; set; }
+
+        // Collect distinct customers
+        var distinctCustNums = filtered
+            .Select(d => d.CustomerNumber)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // Fetch all customer infos in parallel
+        var fetchTasks = distinctCustNums.ToDictionary(
+            custNum => custNum!,
+            custNum => CustomerService.GetCustomerInformationForCustomerAsync(custNum!)
+        );
+
+        await Task.WhenAll(fetchTasks.Values);
+
+        // Build a lookup map
+        var customerInfoByNumber = new Dictionary<string, dynamic?>(
+            capacity: fetchTasks.Count,
+            comparer: StringComparer.OrdinalIgnoreCase
+        );
+
+        foreach (var kvp in fetchTasks)
+        {
+            customerInfoByNumber[kvp.Key] = kvp.Value.Result; // safe after WhenAll
+        }
+
+        foreach (var d in filtered)
+        {
+            // Promo rule
+            var isPromoApplicable =
+                string.Equals(d.PcfType, "PD", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(d.PcfType, "PW", StringComparison.OrdinalIgnoreCase);
+
+            if (!isPromoApplicable)
+            {
+                d.PromoFreightTerms = "Not applicable";
+                d.FreightMinimums = "Not applicable"; // this remains your *promo* minimums field
+            }
+            // else: leave existing promo fields alone
+
+            // Standard fields from customer info (copy strings only)
+            if (!string.IsNullOrWhiteSpace(d.CustomerNumber) &&
+                customerInfoByNumber.TryGetValue(d.CustomerNumber!, out var cinfo) &&
+                cinfo is not null)
+            {
+                // Adjust property names if they differ in your CustomerInfo DTO
+                d.StandardFreightTerms = cinfo.FreightTerms;
+                d.StandardFreightMinimums = cinfo.FreightMinimums.ToString();
+            }
+            else
+            {
+                d.StandardFreightTerms ??= string.Empty;
+                d.StandardFreightMinimums ??= string.Empty;
+            }
+        }
+        // ======================================================
+
+        // ================== COLUMN VISIBILITY/ORDER ==================
+        // Read the grid's current column configuration so we:
+        //  - include only visible columns
+        //  - respect the current column order
+        var gridColumns = await MyDetGrid.GetColumnsAsync();
+
+        var visibleFieldOrder = gridColumns
+            .Where(c => c.Visible && !string.IsNullOrWhiteSpace(c.Field))
+            .OrderBy(c => c.Index)
+            .Select(c => c.Field)
+            .ToList();
+
+        var visibleFieldSet = new HashSet<string>(visibleFieldOrder, StringComparer.OrdinalIgnoreCase);
+
+        var fieldOrderLookup = visibleFieldOrder
+            .Select((field, index) => new { field, index })
+            .ToDictionary(x => x.field, x => x.index, StringComparer.OrdinalIgnoreCase);
+        // ======================================================
+
+        // ---------- Header fields (now includes both promo & standard) ----------
+        // NOTE: header field *order* is fixed; we only drop entries whose mapped grid column is hidden.
+        var headerFieldDefinitions = new (string Label, Func<PCFDetail, object?> Value, string? Field)[]
+        {
+        ("PCF #",                  x => x.PCFNum,                  nameof(PCFDetail.PCFNum)),
+        ("Customer #",             x => x.CustomerNumber,          nameof(PCFDetail.CustomerNumber)),
+        ("Customer Name",          x => x.CustomerName,            nameof(PCFDetail.CustomerName)),
+        ("Corp Cust Number",       x => x.CorpCustNum,             nameof(PCFDetail.CorpCustNum)),
+        ("Start Date",             x => x.StartDate,               nameof(PCFDetail.StartDate)),
+        ("End Date",               x => x.EndDate,                 nameof(PCFDetail.EndDate)),
+        ("PCF Status",             x => x.PCFStatusText,           nameof(PCFDetail.PCFStatusText)),
+        ("Type",                   x => x.PcfTypeText,             nameof(PCFDetail.PcfTypeText)),
+        ("Buying Group",           x => x.BuyingGroup,             nameof(PCFDetail.BuyingGroup)),
+        ("Sales Manager",          x => x.SalesManager,            nameof(PCFDetail.SalesManager)),
+        ("Bill To Address",        x => x.BillToAddress,           nameof(PCFDetail.BillToAddress)),
+        ("City",                   x => x.BillToCity,              nameof(PCFDetail.BillToCity)),
+        ("State",                  x => x.BTState,                 nameof(PCFDetail.BTState)),
+        ("ZIP",                    x => x.BTZip,                   nameof(PCFDetail.BTZip)),
+
+        // PROMO (subject to the PD/PW applicability rule above)
+        ("Promo Freight Terms",    x => x.PromoFreightTerms,       nameof(PCFDetail.PromoFreightTerms)),
+        ("Promo Freight Min.",     x => x.FreightMinimums,         nameof(PCFDetail.FreightMinimums)),
+
+        // STANDARD (copied from customer info) – no matching grid column, always included
+        ("Standard Freight Terms", x => x.StandardFreightTerms,    null),
+        ("Standard Freight Min.",  x => x.StandardFreightMinimums, null),
+
+        ("Notes",                  x => x.GeneralNotes,            nameof(PCFDetail.GeneralNotes)),
+        };
+
+        // Keep header order; only drop ones whose mapped field is hidden.
+        var headerFields = headerFieldDefinitions
+            .Where(h => h.Field == null || visibleFieldSet.Contains(h.Field))
+            .ToList();
+
+        // Detail columns: include only visible ones, and order them to match the grid.
+        var detailColumnDefinitions = new (
+            string Header,
+            Func<PCFDetail, object?> Value,
+            bool RightAlign,
+            string? Format,
+            string Field)[]
+        {
+        ("Item #",            x => x.ItemNum,                 false, null,        nameof(PCFDetail.ItemNum)),
+        ("Item Description",  x => x.ItemDesc,                false, null,        nameof(PCFDetail.ItemDesc)),
+        ("Item Status",       x => x.ItemStatusText,          false, null,        nameof(PCFDetail.ItemStatusText)),
+        ("Private Label",     x => x.PrivateLabelFlag,        false, null,        nameof(PCFDetail.PrivateLabelFlag)),
+        ("Delete Later",      x => x.DeleteLater,             true,  null,        nameof(PCFDetail.DeleteLater)),
+        ("Family Code",       x => x.Family_Code,             false, null,        nameof(PCFDetail.Family_Code)),
+        ("Family Name",       x => x.Family_Code_Description, false, null,        nameof(PCFDetail.Family_Code_Description)),
+
+        ("FY26 Qty",          x => x.FY2026_Qty,              true,  "0",         nameof(PCFDetail.FY2026_Qty)),
+        ("FY26 Sales",        x => x.FY2026_Sales,            true,  "$#,##0",    nameof(PCFDetail.FY2026_Sales)),
+        ("FY25 Qty",          x => x.FY2025_Qty,              true,  "0",         nameof(PCFDetail.FY2025_Qty)),
+        ("FY25 Sales",        x => x.FY2025_Sales,            true,  "$#,##0",    nameof(PCFDetail.FY2025_Sales)),
+        ("FY24 Qty",          x => x.FY2024_Qty,              true,  "0",         nameof(PCFDetail.FY2024_Qty)),
+        ("FY24 Sales",        x => x.FY2024_Sales,            true,  "$#,##0",    nameof(PCFDetail.FY2024_Sales)),
+        ("FY23 Qty",          x => x.FY2023_Qty,              true,  "0",         nameof(PCFDetail.FY2023_Qty)),
+        ("FY23 Sales",        x => x.FY2023_Sales,            true,  "$#,##0",    nameof(PCFDetail.FY2023_Sales)),
+
+        ("PCF Price",         x => x.ApprovedPriceDecimal,    true,  "$#,##0.00", nameof(PCFDetail.ApprovedPriceDecimal)),
+        ("STD Margin",        x => x.StandardMargin,          true,  "0.00%",     nameof(PCFDetail.StandardMargin)),
+        };
+
+        var detailColumns = detailColumnDefinitions
+            .Where(d => fieldOrderLookup.ContainsKey(d.Field))
+            .OrderBy(d => fieldOrderLookup[d.Field])
+            .ToList();
+
+        // -------------- Excel build --------------
+        byte[] bytes;
+
+        using (var excelEngine = new Syncfusion.XlsIO.ExcelEngine())
+        {
+            var application = excelEngine.Excel;
+            application.DefaultVersion = Syncfusion.XlsIO.ExcelVersion.Xlsx;
+
+            var workbook = application.Workbooks.Create(1);
+            var ws = workbook.Worksheets[0];
+            ws.Name = "PCF Export";
+
+            int row = 1;
+            if (IsCorpCustFiltered())
+            {
+                var ccfilter = GetCorpCustFilterSimple();
+                ws.Range["A" + row].Text = $"PCF Review for Corp Customer(s) {ccfilter}";
+            }
+            else
+            {
+                ws.Range["A" + row].Text = "PCF Review";
+            }
+
+            ws.Range["A" + row].CellStyle.Font.Bold = true;
+            ws.Range["A" + row].CellStyle.Font.Size = 16;
+            row += 2;
+
+            var groups = filtered
+                .GroupBy(x => x.CustNum)
+                .OrderBy(g => g.Key)
+                .SelectMany(g =>
+                    g.GroupBy(x => x.PCFNum)
+                     .OrderBy(gg => gg.Key));
+
+            foreach (var pcfGroup in groups)
+            {
+                var first = pcfGroup.First();
+
+                ws.Range["A" + row].Text = $"Customer {first.CustNum} - PCF {first.PCFNum}";
+                ws.Range["A" + row].CellStyle.Font.Bold = true;
+                ws.Range["A" + row].CellStyle.Font.Size = 12;
+                row++;
+
+                // --- Header key-value pairs (two columns per row: Label in A, Value in B) ---
+                foreach (var (Label, Value, _) in headerFields)
+                {
+                    ws.Range["A" + row].Text = Label;
+                    ws.Range["A" + row].CellStyle.Font.Bold = true;
+                    ws.Range["B" + row].Text = FormatCell(Value(first));
+                    row++;
+                }
+
+                row++; // spacer line
+
+                // --- Detail table header ---
+                int col = 1;
+                foreach (var (Header, _, _, _, _) in detailColumns)
+                {
+                    ws.Range[row, col].Text = Header;
+                    ws.Range[row, col].CellStyle.Font.Bold = true;
+                    ws.Range[row, col].CellStyle.Borders[Syncfusion.XlsIO.ExcelBordersIndex.EdgeBottom].LineStyle =
+                        Syncfusion.XlsIO.ExcelLineStyle.Thin;
+                    col++;
+                }
+
+                row++;
+
+                // --- Detail rows ---
+                foreach (var item in pcfGroup)
+                {
+                    col = 1;
+                    foreach (var (_, Value, RightAlign, Format, _) in detailColumns)
+                    {
+                        var cell = ws.Range[row, col];
+                        var v = Value(item);
+
+                        if (v is DateTime dt)
+                        {
+                            cell.DateTime = dt;
+                            cell.NumberFormat = "m/d/yyyy";
+                        }
+                        else if (v is int || v is long || v is double || v is decimal)
+                        {
+                            cell.Number = Convert.ToDouble(v);
+                            if (!string.IsNullOrEmpty(Format))
+                            {
+                                cell.NumberFormat = Format;
+                            }
+
+                            if (RightAlign)
+                            {
+                                cell.CellStyle.HorizontalAlignment = Syncfusion.XlsIO.ExcelHAlign.HAlignRight;
+                            }
+                        }
+                        else if (v is bool b)
+                        {
+                            cell.Text = b ? "Yes" : "";
+                            cell.HorizontalAlignment = ExcelHAlign.HAlignCenter;
+                        }
+                        else
+                        {
+                            cell.Text = v?.ToString() ?? string.Empty;
+                        }
+
+                        col++;
+                    }
+
+                    row++;
+                }
+
+                // Auto-size and pad column widths after each PCF group
+                ws.UsedRange.AutofitColumns();
+                ws.Range["B:B"].ColumnWidth = 50;
+                var lastCol = ws.UsedRange.LastColumn;
+                for (int c = 1; c <= lastCol - 1; c++)
+                {
+                    // XlsIO reports 0 when the column is using the sheet's default width,
+                    // so fall back to StandardWidth in that case.
+                    double current = ws.Columns[c].ColumnWidth;
+                    if (current <= 0)
+                    {
+                        current = ws.StandardWidth;
+                    }
+
+                    double updated = Math.Min(255.0, current + 2.0);
+                    ws.Columns[c].ColumnWidth = updated;
+                }
+
+                row += 3;
+            }
+
+            using var ms = new MemoryStream();
+            workbook.SaveAs(ms);
+            bytes = ms.ToArray();
+        }
+
+        await JS.InvokeVoidAsync(
+            "downloadFile",
+            ExcelFileName,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            bytes
+        );
+
+        ToastObj.Timeout = 2000;
+        ToastObj.Content = "Your file is complete";
+        ToastObj.CssClass = "e-toast-success";
+        await ToastObj.ShowAsync();
+    }
+
+    private async Task ExportReviewFormatOLDx()
     {
         string ExcelFileName = $"PCFReviews.xlsx";
         if (IsCorpCustFiltered())
