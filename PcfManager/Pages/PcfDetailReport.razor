@@ -481,7 +481,7 @@
         //  - include only visible columns
         //  - respect the current column order
         var gridColumns = await MyDetGrid.GetColumnsAsync();
-
+        // Don't include Delete Now because it is not a field. 
         var visibleFieldOrder = gridColumns
             .Where(c => c.Visible && !string.IsNullOrWhiteSpace(c.Field))
             .OrderBy(c => c.Index)
@@ -556,7 +556,9 @@
         ("FY23 Sales",        x => x.FY2023_Sales,            true,  "$#,##0",    nameof(PCFDetail.FY2023_Sales)),
 
         ("PCF Price",         x => x.ApprovedPriceDecimal,    true,  "$#,##0.00", nameof(PCFDetail.ApprovedPriceDecimal)),
-        ("STD Margin",        x => x.StandardMargin,          true,  "0.00%",     nameof(PCFDetail.StandardMargin)),
+        ("STD Margin",        x => x.StandardMargin,          true,  "0.00%",     nameof(PCFDetail.StandardMargin))
+       
+
         };
 
         var detailColumns = detailColumnDefinitions
