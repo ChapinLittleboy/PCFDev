@@ -562,10 +562,10 @@ else
                             
                         </div>
 
-                        <SfGrid @ref="Grid" DataSource="@phDTO.PCFLines" ID="MyGrid"
+                        <SfGrid @ref="Grid" DataSource="@phDTO.PCFLines" ID="PcfEditorGrid"
                                 AllowResizing="true" AllowExcelExport="true" Height="400"
                                 AllowTextWrap="true" AllowReordering="true" ShowColumnChooser="false"
-                                EnablePersistence="false"
+                                EnablePersistence="true"
                                 Toolbar="@ToolbarItems"
                                 EnableStickyHeader="true">
 
@@ -855,7 +855,7 @@ else
     private string ButtonText => isDescriptionVisible ? "Hide Description" : "Show Description";
 
     private SfListBox<string, ColumnItem> ListBoxRef;
-    
+
     private SfDialog ProgramDialog;
 
     private bool ShowProgramDialog { get; set; } = false;
@@ -886,21 +886,41 @@ else
     private static int FiscalYearEndYear(DateTime asOf)
         => asOf.Month >= 9 ? asOf.Year + 1 : asOf.Year;
 
- 
+
     private Dictionary<string,bool> selected = new(StringComparer.OrdinalIgnoreCase);
 
     public List<object> ToolbarItems = new()
     {
-        
+
         "ExcelExport" // built-in export button
 
-    
+
     };
     private void MarkAsDirty()
     {
         HasUnsavedChanges = true;
     }
-    public record ColumnItem(string Field, string HeaderText);
+    //public record ColumnItem(string Field, string HeaderText);
+    //public record ColumnItem(string Field, string HeaderText, int DisplayOrder);
+
+    public class ColumnItem
+    {
+        public string Field { get; set; }
+        public string HeaderText { get; set; }
+
+        /// <summary>
+        /// Current visual order of this column in the grid (0-based).
+        /// </summary>
+        public int DisplayOrder { get; set; }
+
+        public ColumnItem(string field, string headerText, int displayOrder = 0)
+        {
+            Field = field;
+            HeaderText = headerText;
+            DisplayOrder = displayOrder;
+        }
+    }
+
     private async Task Invert()
     {
         var toShow = new List<string>();
@@ -929,7 +949,7 @@ else
         foreach (var ci in Columns)
         {
             // Use whichever exists in your version:
-             var col = await Grid.GetColumnByFieldAsync(ci.Field);
+            var col = await Grid.GetColumnByFieldAsync(ci.Field);
             //var col = await Grid.GetColumnByField(ci.Field);
 
             if (col?.Visible != false)
@@ -939,7 +959,7 @@ else
         //chooserOpen = true;  
         StateHasChanged();
     }
- 
+
     private string GetCmaFileLink()
     {
         string basePath = Configuration["FilePathSettings:CmaArchivePath"];
@@ -983,28 +1003,28 @@ else
     {
         // Seed every key so the foreach can render safely
         var fy = FiscalYearEndYear(DateTime.Now);
+        int i = 0;
         Columns = new()
         {
-            new("ItemNum", "Item"),
-            new("ItemDesc", "Item Description"),
-            new("ItemStatus", "Item Status"),
-            new("ProposedPrice", "Accepted Price"),
-            new("Margin", "Margin"),
-            new("PP1Price", "$4K Price (PP1)"),
-            new("Pct to 4k", "Pct to 4k"),
-            new("PP2Price", "$12.5k Price (PP2)"),
-            new("FOBPrice", "FOB"),
-            new("Family_Code", "Family Code"),
+            new("ItemNum", "Item", i++),
+            new("ItemDesc", "Item Description", i++),
+            new("ItemStatus", "Item Status", i++),
+            new("ProposedPrice", "Accepted Price", i++),
+            new("Margin", "Margin", i++),
+            new("PP1Price", "$4K Price (PP1)", i++),
+            new("Pct to 4k", "Pct to 4k", i++),    // <-- special column
+            new("PP2Price", "$12.5k Price (PP2)", i++),
+            new("FOBPrice", "FOB", i++),
+            new("Family_Code", "Family Code", i++),
 
-            // Dynamic FY labels (current + prior years)
-            new("CurrentFYSales", $"FY{fy} Sales"),
-            new("CurrentFYUnits", $"FY{fy} Units"),
+            new("CurrentFYSales", $"FY{fy} Sales", i++),
+            new("CurrentFYUnits", $"FY{fy} Units", i++),
 
-            new("Prior1FYSales", $"FY{fy - 1} Sales"),
-            new("Prior1FYUnits", $"FY{fy - 1} Units"),
+            new("Prior1FYSales", $"FY{fy - 1} Sales", i++),
+            new("Prior1FYUnits", $"FY{fy - 1} Units", i++),
 
-            new("Prior2FYSales", $"FY{fy - 2} Sales"),
-            new("Prior2FYUnits", $"FY{fy - 2} Units"),
+            new("Prior2FYSales", $"FY{fy - 2} Sales", i++),
+            new("Prior2FYUnits", $"FY{fy - 2} Units", i++),
         };
     
 
@@ -1066,6 +1086,45 @@ else
     }
     private async Task OnGridCreated()
     {
+        if (Grid == null)
+        {
+            return;
+        }
+
+        // Columns from the grid, already including any persisted layout
+        var gridColumns = await Grid.GetColumns();
+
+        foreach (var ci in Columns)
+        {
+            // Match by Field when possible; fall back to HeaderText (for the template column)
+            var gridCol = gridColumns.FirstOrDefault(gc =>
+                (!string.IsNullOrEmpty(gc.Field) &&
+                 string.Equals(gc.Field, ci.Field, StringComparison.OrdinalIgnoreCase))
+                || (string.IsNullOrEmpty(gc.Field) &&
+                    string.Equals(gc.HeaderText, ci.HeaderText, StringComparison.OrdinalIgnoreCase)));
+
+            if (gridCol != null)
+            {
+                selected[ci.Field] = gridCol.Visible;
+                ci.DisplayOrder = gridColumns.IndexOf(gridCol);
+            }
+            else
+            {
+                // If we don't find a match, assume visible and push to the end
+                selected[ci.Field] = true;
+                ci.DisplayOrder = gridColumns.Count;
+            }
+        }
+
+        // Special handling for the template column "Pct to 4k"
+        await SyncPctTo4KWithPP1Async();
+
+        StateHasChanged();
+    }
+
+
+    private async Task OnGridCreatedOld()
+    {
         // Grid is definitely non-null here
         foreach (var c in Columns)
         {
@@ -1075,7 +1134,61 @@ else
         StateHasChanged();
     }
 
-   
+    private async Task SyncPctTo4KWithPP1Async()
+    {
+        if (Grid == null)
+        {
+            return;
+        }
+
+        var gridColumns = await Grid.GetColumns();
+
+        // "PP1Price" is a normal bound column with a Field
+        var pp1Column = gridColumns.FirstOrDefault(gc =>
+            string.Equals(gc.Field, "PP1Price", StringComparison.OrdinalIgnoreCase));
+
+        // "Pct to 4k" is a template column with no Field, so we match by HeaderText
+        var pctColumn = gridColumns.FirstOrDefault(gc =>
+            string.Equals(gc.HeaderText, "Pct to 4k", StringComparison.OrdinalIgnoreCase));
+
+        if (pp1Column == null || pctColumn == null)
+        {
+            return;
+        }
+
+        // 1) Match visibility: "Pct to 4k" should show/hide along with PP1Price
+        var pctKey = "Pct to 4k";
+        selected[pctKey] = pp1Column.Visible;
+
+        if (pp1Column.Visible)
+        {
+            // Use header text to show the template column
+            await Grid.ShowColumns(new[] { pctColumn.HeaderText }, "HeaderText");
+        }
+        else
+        {
+            await Grid.HideColumns(new[] { pctColumn.HeaderText }, "HeaderText");
+        }
+
+        // 2) Keep DisplayOrder in sync with whatever order persistence gave us
+        gridColumns = await Grid.GetColumns();
+        for (int i = 0; i < gridColumns.Count; i++)
+        {
+            var gc = gridColumns[i];
+
+            var ci = Columns.FirstOrDefault(c =>
+                (!string.IsNullOrEmpty(gc.Field) &&
+                 string.Equals(c.Field, gc.Field, StringComparison.OrdinalIgnoreCase)) ||
+                (string.IsNullOrEmpty(gc.Field) &&
+                 string.Equals(c.HeaderText, gc.HeaderText, StringComparison.OrdinalIgnoreCase)));
+
+            if (ci != null)
+            {
+                ci.DisplayOrder = i;
+            }
+        }
+    }
+
     private async Task SelectAll()
     {
         var fields = Columns.Select(c => c.Field).ToArray();
@@ -1174,7 +1287,7 @@ else
 
     public async Task ToolbarClick(Syncfusion.Blazor.Navigations.ClickEventArgs args)
     {
-        if (args.Item.Id == "MyGrid_excelexport") //Id is combination of Grid's ID and itemname
+        if (args.Item.Id == "PcfEditorGrid_excelexport") //Id is combination of Grid's ID and itemname
         {
             await ExportSinglePcf();
         }
@@ -1481,8 +1594,66 @@ else
 
     }
 
-
     private async Task ExportSinglePcf()
+    {
+        if (Grid == null)
+        {
+            return;
+        }
+
+        // Use the grid's *current* state (including persistence + drag/drop)
+        var gridColumns = await Grid.GetColumns();
+
+        var visibleInOrder = new List<string>();
+
+        for (int i = 0; i < gridColumns.Count; i++)
+        {
+            var gc = gridColumns[i];
+
+            if (!gc.Visible)
+            {
+                continue;
+            }
+
+            // Prefer Field; fall back to HeaderText (for "Pct to 4k")
+            var key = !string.IsNullOrWhiteSpace(gc.Field)
+                ? gc.Field
+                : gc.HeaderText;
+
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
+
+            visibleInOrder.Add(key);
+
+            var colItem = Columns.FirstOrDefault(c =>
+                string.Equals(c.Field, key, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(c.HeaderText, key, StringComparison.OrdinalIgnoreCase));
+
+            if (colItem != null)
+            {
+                colItem.DisplayOrder = i;
+                selected[colItem.Field] = true;
+            }
+        }
+
+        // This is what we pass into ExcelGenerator so Excel matches the grid
+        selectedFields = visibleInOrder;
+
+        var excelGenerator = new ExcelGenerator(DataService, UserService, RepRepository, CustomerService);
+        var excelBytes = await ExcelGenerator.ExportPcfToExcel(phDTO, selectedFields);
+
+        var fileName = $"{phDTO.CustomerNumber}_{phDTO.CustomerName}_Pcf_{phDTO.PcfNumber}.xlsx";
+        await JSRuntime.InvokeVoidAsync(
+            "downloadFile",
+            fileName,
+            "application/vnd.ms-excel.sheet.macroEnabled.12",
+            excelBytes);
+    }
+
+
+    private async Task ExportSinglePcfOld()
     {
         await OpenChooserAsync();  // doesn't open anything, just updates the selectedFields list
         var excelGenerator = new ExcelGenerator(DataService, UserService, RepRepository, CustomerService);
@@ -1495,6 +1666,8 @@ else
         var fileName = $"{phDTO.CustomerNumber}_{phDTO.CustomerName}_Pcf_{phDTO.PcfNumber}.xlsx";
         await JSRuntime.InvokeVoidAsync("downloadFile", fileName, "application/vnd.ms-excel.sheet.macroEnabled.12", excelBytes);
     }
+
+
     private RenderFragment<object> PercentageTemplate => (context) => builder =>
     {
         var data = context as PCFItemDTO;

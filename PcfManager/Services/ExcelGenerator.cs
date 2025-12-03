@@ -69,9 +69,9 @@ public class ExcelGenerator
         worksheet.Range["A11"].Text = "Promo Payment Terms Text:";
         worksheet.Range["B11"].Text = header.PromoPaymentTermsText;
         worksheet.Range["A12"].Text = "Freight Terms:";
-        worksheet.Range["B12"].Text = header.FreightTerms;
+        worksheet.Range["B12"].Text = header.CustomerInfo.FreightTerms;
         worksheet.Range["A13"].Text = "Freight Minimums:";
-        worksheet.Range["B13"].Text = header.FreightMinimums;
+        worksheet.Range["B13"].Text = header.CustomerInfo.FreightMinimums.ToString();
         worksheet.Range["A14"].Text = "General Notes:";
         worksheet.Range["B14"].Text = header.GeneralNotes;
         worksheet.Range["A15"].Text = "Market Type:";
@@ -321,6 +321,45 @@ public class ExcelGenerator
                 yield return new ColSpec { Header = $"FY{fy - 2}_Sales", Write = (c, x) => WriteCurrency(c, (double)x.Prior2FYSales) };
             else if (key is "FYPRIOR2UNITS" or "PRIOR2FYUNITS")
                 yield return new ColSpec { Header = $"FY{fy - 2}_Units", Write = (c, x) => c.Number = (double)x.Prior2FYUnits };
+
+            else if (key is "PP1Price" or "PP1PRICE")
+                yield return new ColSpec { Header = $"4K Price", Write = (c, x) => WriteCurrency(c, (double)x.PP1Price) };
+            else if (key is "PP2Price" or "PP2PRICE")
+                yield return new ColSpec { Header = $"12.5K Price", Write = (c, x) => WriteCurrency(c, (double)x.PP2Price) };
+            else if (key is "FOBPrice" or "FOBPRICE")
+                yield return new ColSpec { Header = $"FOB Price", Write = (c, x) => WriteCurrency(c, (double)x.FOBPrice) };
+            else if (key is "Pct to 4K" or "PCTTO4K" or "PCT TO 4K")
+            {
+                yield return new ColSpec
+                {
+                    Header = "Pct to 4K",
+                    Write = (c, x) =>
+                    {
+                        // If PP1Price is zero, leave the cell blank
+                        if (x.PP1Price == 0)
+                        {
+                            c.Value = null; // or: c.Value = string.Empty;
+                            return;
+                        }
+
+                        // percentage = ((ProposedPrice - PP1Price) / PP1Price) * 100
+                        // For Excel, use a 0–1 value and format as percent.
+                        var pct = (double)((x.ProposedPrice - x.PP1Price) / x.PP1Price);
+
+                        // If you have a helper like WritePercent, use it:
+                        //WritePercent(c, pct * 100);
+
+                        // Otherwise, set it directly and apply a percent number format.
+                        c.Number = pct; // e.g. 0.1234 for 12.34%
+                        c.NumberFormat = "0.00%";
+                    }
+                };
+            }
+
+
+
+
+
 
             // Explicit FY headers (e.g., "FY2026_Sales" / "FY2026_Units")
             else if (TryParseExplicitFyHeader(token, out var fyYear, out var kind))
