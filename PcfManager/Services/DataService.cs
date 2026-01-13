@@ -214,10 +214,10 @@ public class DataService
 
         // Fetch rep info from linked server
         var repInfo = await connection.QuerySingleOrDefaultAsync<(string RepName, string RepAgency, string RepEmail)>(
-            @"SELECT RepCode AS RepName, AgencyName AS RepAgency, EmailList AS RepEmail
+            @"SELECT Top 1 RepCode AS RepName, AgencyName AS RepAgency, EmailList AS RepEmail
           FROM CIISQL10.[Bat_App].[dbo].[Chap_SalesRepEmail] sre
           join CIISQL10.[Bat_App].[dbo].[customer_mst] cu0 on sre.RepCode = cu0.slsman 
-          where ltrim(cu0.cust_num) = @CustNum and cu0.cust_seq = 0",
+          where ltrim(cu0.cust_num) = @CustNum and cu0.cust_seq = 0 order by sre.SalesRegion ",
             new { CustNum = headerEntity.CustNum });
 
         if (repInfo != default)
@@ -1025,7 +1025,7 @@ Approved = @newApproval
                 _dbConnectionFactory.CreateReadOnlyConnection(_userService.CurrentSytelineDatabaseName);
 
             var email = await connection.QueryFirstOrDefaultAsync<string>(
-                "SELECT TOP 1 EmailList FROM Chap_SalesRepEmail WHERE RepCode = @RepCode",
+                "SELECT TOP 1 EmailList FROM Chap_SalesRepEmail WHERE RepCode = @RepCode order by SalesRegion ",
                 new { RepCode = repCode });
 
             return email ?? string.Empty; // Ensure non-null return

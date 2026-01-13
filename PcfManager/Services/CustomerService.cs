@@ -79,7 +79,7 @@ Left join Chap_SalesRepEmail sre on sre.RepCode = cu.slsman
 
             WHERE 
                 dbo.ExpandKyByType('CustNumType',ca.cust_num) = dbo.ExpandKyByType('CustNumType',@CustNum) 
-                
+            ORDER BY sre.SalesRegion 
             ";
 
             return await connection.QuerySingleOrDefaultAsync<Customer>(sql, new { CustNum = selectedCustomer });
