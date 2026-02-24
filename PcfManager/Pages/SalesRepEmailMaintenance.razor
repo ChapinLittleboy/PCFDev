@@ -1,0 +1,132 @@
+﻿@page "/sales-rep-email"
+@inject PcfManager.Services.SalesRepEmailService Service
+
+<h3>Sales Rep Email Maintenance</h3>
+
+<button class="btn btn-primary mb-2" @onclick="NewItem">Add New</button>
+
+<table class="table table-sm table-bordered">
+    <thead>
+        <tr>
+            <th>RepCode</th>
+            <th>Sales Region</th>
+            <th>Agency</th>
+            <th>Email List</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Items)
+        {
+            <tr>
+                <td>@item.RepCode</td>
+                <td>@item.SalesRegion</td>
+                <td>@item.AgencyName</td>
+                <td>@item.EmailList</td>
+                <td>
+                    <button class="btn btn-sm btn-secondary" @onclick="() => EditItem(item)">Edit</button>
+                    <button class="btn btn-sm btn-danger" @onclick="() => DeleteItem(item)">Delete</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (EditModel != null)
+{
+    <div class="card p-3">
+        <h5>@(IsNew ? "Add" : "Edit") Entry</h5>
+
+        <div class="mb-2">
+            <label>RepCode</label>
+            <input class="form-control" @bind="EditModel.RepCode" disabled="@(!IsNew)" maxlength="4" />
+        </div>
+
+        <div class="mb-2">
+            <label>Sales Region</label>
+            @if (IsNew)
+            {
+                <input class="form-control"
+                       @bind="EditModel.SalesRegion" />
+            }
+            else
+            {
+                <input class="form-control"
+                       value="@EditModel.SalesRegion"
+                       readonly />
+            }
+        </div>
+
+        <div class="mb-2">
+            <label>Agency Name</label>
+            <input class="form-control" @bind="EditModel.AgencyName" />
+        </div>
+
+        <div class="mb-2">
+            <label>Email List</label>
+            <textarea class="form-control" rows="3" @bind="EditModel.EmailList"></textarea>
+        </div>
+
+        <button class="btn btn-success" @onclick="Save">Save</button>
+        <button class="btn btn-secondary ms-2" @onclick="Cancel">Cancel</button>
+    </div>
+}
+
+@code {
+    private List<SalesRepEmail> Items = new();
+    private SalesRepEmail? EditModel;
+    private bool IsNew;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        Items = await Service.GetAllAsync();
+    }
+
+    private void NewItem()
+    {
+        IsNew = true;
+        EditModel = new SalesRepEmail();
+    }
+
+    private void EditItem(SalesRepEmail item)
+    {
+        IsNew = false;
+        EditModel = new SalesRepEmail
+        {
+            RepCode = item.RepCode,
+            SalesRegion = item.SalesRegion,
+            AgencyName = item.AgencyName,
+            EmailList = item.EmailList
+        };
+    }
+
+    private async Task Save()
+    {
+        if (EditModel == null)
+            return;
+
+        if (IsNew)
+            await Service.InsertAsync(EditModel);
+        else
+            await Service.UpdateAsync(EditModel);
+
+        EditModel = null;
+        await Load();
+    }
+
+    private async Task DeleteItem(SalesRepEmail item)
+    {
+        await Service.DeleteAsync(item.RepCode, item.SalesRegion);
+        await Load();
+    }
+
+    private void Cancel()
+    {
+        EditModel = null;
+    }
+}

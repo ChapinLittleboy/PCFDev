@@ -72,15 +72,18 @@ public class ExcelGenerator
         worksheet.Range["B12"].Text = header.CustomerInfo.FreightTerms;
         worksheet.Range["A13"].Text = "Freight Minimums:";
         worksheet.Range["B13"].Text = header.CustomerInfo.FreightMinimums.ToString();
-        worksheet.Range["A14"].Text = "General Notes:";
-        worksheet.Range["B14"].Text = header.GeneralNotes;
-        worksheet.Range["A15"].Text = "Market Type:";
-        worksheet.Range["B15"].Text = header.MarketType;
-        worksheet.Range["A2:A15"].CellStyle.Font.Bold = true;
+        // Standard payment terms inserted above General Notes per business requirement
+        worksheet.Range["A14"].Text = "Standard Payment Terms:";
+        worksheet.Range["B14"].Text = header.CustomerInfo.PaymentTermsDescription;
+        worksheet.Range["A15"].Text = "General Notes:";
+        worksheet.Range["B15"].Text = header.GeneralNotes;
+        worksheet.Range["A16"].Text = "Market Type:";
+        worksheet.Range["B16"].Text = header.MarketType;
+        worksheet.Range["A2:A16"].CellStyle.Font.Bold = true;
 
-        worksheet.Range["A17:B17"].Merge();
-        worksheet.Range["A17"].Text = "PCF Item Details:";
-        worksheet.Range["A17"].CellStyle.Font.Bold = true;
+        worksheet.Range["A18:B18"].Merge();
+        worksheet.Range["A18"].Text = "PCF Item Details:";
+        worksheet.Range["A18"].CellStyle.Font.Bold = true;
 
         // ===== Item section with dynamic columns =====
         int fy = FiscalYearEndYear(DateTime.Now);
@@ -90,15 +93,15 @@ public class ExcelGenerator
         if (specs.Count == 0)
             throw new ArgumentException("No valid item columns were provided.", nameof(itemColumns));
 
-        // Write column headers at row 18
+        // Write column headers at row 19
         for (int i = 0; i < specs.Count; i++)
         {
-            worksheet.Range[18, i + 1].Text = specs[i].Header;
-            worksheet.Range[18, i + 1].CellStyle.Font.Bold = true;
+            worksheet.Range[19, i + 1].Text = specs[i].Header;
+            worksheet.Range[19, i + 1].CellStyle.Font.Bold = true;
         }
 
         // Write item rows starting row 19
-        int rowIndex = 19;
+        int rowIndex = 20;
         foreach (var item in header.PCFLines.OrderBy(l => l.ItemNum))
         {
             for (int ci = 0; ci < specs.Count; ci++)
@@ -352,6 +355,10 @@ public class ExcelGenerator
                         // Otherwise, set it directly and apply a percent number format.
                         c.Number = pct; // e.g. 0.1234 for 12.34%
                         c.NumberFormat = "0.00%";
+
+                        // Highlight negative percentages in red so they stand out
+                        if (pct < 0)
+                            c.CellStyle.Font.Color = ExcelKnownColors.Red;
                     }
                 };
             }

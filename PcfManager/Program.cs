@@ -130,6 +130,8 @@ builder.Services.AddSingleton<IPriceBookVersionService>(_ =>
 
 // Register generator
 builder.Services.AddSingleton<IPriceBookGenerator, PriceBookGenerator>();
+builder.Services.AddScoped<SalesRepEmailService>();
+
 
 builder.Services.AddHttpClient("MyAPI", client =>
 {
