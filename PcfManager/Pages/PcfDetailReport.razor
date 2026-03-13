@@ -21,6 +21,12 @@
 <div>
     <div class="active-filters">
         <button @onclick="ClearFilters">Clear Filters</button>
+        <label class="ms-3">
+            <input type="checkbox" class="me-1" @bind="IncludeExpiredPCFs" />
+            Include Expired PCFs
+        </label>
+      
+
 
         <!--
         <span class="divider">|</span>
@@ -62,6 +68,7 @@
     <GridPageSettings  PageSize="12" PageSizes="@(new string[] { "12", "50", "100", "All" })"></GridPageSettings>
     <GridColumns>
         <GridColumn Field="PCFNum" HeaderText="PCF #" TextAlign="TextAlign.Center" Width="100" Type="ColumnType.Number" />
+       
         <GridColumn Field="CustomerNumber" HeaderText="Customer #" Width="120" />
         <GridColumn Field="CustomerName" HeaderText="Customer Name" Width="200" />
         <GridColumn Field="CorpCustNum" HeaderText="Corp Cust Number" Width="120" />
@@ -123,16 +130,14 @@
                <GridColumn Field="Family_Code_Description" HeaderText="FamCode Description" Width="200" />
         *@
 
-        <GridColumn Field="FY2023_Qty" HeaderText="FY23 Qty"
-                    Type="ColumnType.Number" Format="N0" TextAlign="TextAlign.Right" Width="130" />
+
         <GridColumn Field="FY2024_Qty" HeaderText="FY24 Qty"
                     Type="ColumnType.Number" Format="N0" TextAlign="TextAlign.Right" Width="130" />
         <GridColumn Field="FY2025_Qty" HeaderText="FY25 Qty"
                     Type="ColumnType.Number" Format="N0" TextAlign="TextAlign.Right" Width="130" />
         <GridColumn Field="FY2026_Qty" HeaderText="FY26 Qty"
                     Type="ColumnType.Number" Format="N0" TextAlign="TextAlign.Right" Width="130" />
-        <GridColumn Field="FY2023_Sales" HeaderText="FY23 Sales"
-                    Type="ColumnType.Number" Format="C0" TextAlign="TextAlign.Right" Width="130" />
+
         <GridColumn Field="FY2024_Sales" HeaderText="FY24 Sales"
                     Type="ColumnType.Number" Format="C0" TextAlign="TextAlign.Right" Width="130" />
         <GridColumn Field="FY2025_Sales" HeaderText="FY25 Sales"
@@ -149,14 +154,14 @@
 
 
 <div class="mt-3">
-    <button class="btn btn-primary" @onclick="ApplyDeletes" disabled="@isBusy">
+    <button class="btn btn-primary" @onclick="ApplyDeletes" disabled="@(isBusy || !HasAnyDeletesSelected)">
         @(isBusy ? "Applying..." : "Apply Deletes")
     </button>
     <span class="ms-3">@statusMessage</span>
 </div>
 
 <div>
-    <span style="font-size: 50%;">* Note: StdMargin = PCF Price minus Standard Cost divided by PCF Price and returned as percent</span>
+    <span style="font-size: 50%;">* Note: StdMargin = PCF Price minus Standard Cost divided by PCF Price and returned as percent.</span>
 </div>
 
 @if (isLoading)
@@ -192,11 +197,13 @@
     private Dictionary<string,bool> selected = new(StringComparer.OrdinalIgnoreCase);
     public List<object> ToolbarItems = default!;
 
-
+    private bool _initialFilterApplied = false;
     private SfToast ToastObj;
     private string ToastMessage = "Please change PageSize to ‘All’ before exporting.";
     private string ToastPosition = "Center";
     private string PcfStatusValue = "Approved"; // default filter value
+    private bool IncludeExpiredPCFs = false;
+    private bool HasAnyDeletesSelected => pcfDetails.Any(x => x.DeleteNow || x.DeleteLater);
     private bool IsCorpCustFiltered()
         => MyDetGrid?.FilterSettings?.Columns?.Any(c => c.Field == nameof(PCFDetail.CorpCustNum)) == true;
     private string GetCorpCustFilterSummary()
@@ -317,6 +324,10 @@
 
     ;
 
+
+
+
+
     private async Task OnGridCreated()
     {
         // Grid is definitely non-null here
@@ -369,6 +380,19 @@
         };
         await this.MyDetGrid.ExportToExcelAsync(exportProperties);
     }
+
+
+protected override async Task OnAfterRenderAsync(bool firstRender)
+{
+if (firstRender && !_initialFilterApplied)
+{
+_initialFilterApplied = true;
+
+//await MyDetGrid.FilterByColumnAsync("PCFStatusText", "equal", "Approved");
+}
+}
+
+
 
     private async Task ExportReviewFormat()
     {
@@ -552,8 +576,7 @@
         ("FY25 Sales",        x => x.FY2025_Sales,            true,  "$#,##0",    nameof(PCFDetail.FY2025_Sales)),
         ("FY24 Qty",          x => x.FY2024_Qty,              true,  "0",         nameof(PCFDetail.FY2024_Qty)),
         ("FY24 Sales",        x => x.FY2024_Sales,            true,  "$#,##0",    nameof(PCFDetail.FY2024_Sales)),
-        ("FY23 Qty",          x => x.FY2023_Qty,              true,  "0",         nameof(PCFDetail.FY2023_Qty)),
-        ("FY23 Sales",        x => x.FY2023_Sales,            true,  "$#,##0",    nameof(PCFDetail.FY2023_Sales)),
+     
 
         ("PCF Price",         x => x.ApprovedPriceDecimal,    true,  "$#,##0.00", nameof(PCFDetail.ApprovedPriceDecimal)),
         ("STD Margin",        x => x.StandardMargin,          true,  "0.00%",     nameof(PCFDetail.StandardMargin))
@@ -977,6 +1000,7 @@
                     row++;
                 }
 
+                // Fit columns for the section
                 ws.UsedRange.AutofitColumns();
                 ws.Range["B:B"].ColumnWidth = 50;
                 var lastCol = ws.UsedRange.LastColumn;
@@ -1095,7 +1119,7 @@
         {
             ("Item #",            x => x.ItemNum,              false, null),
             ("Item Description",  x => x.ItemDesc,             false, null),
-            ("Item Status",       x => x.ItemStatusText,           false, null),
+            ("Item Status",       x => x.ItemStatusText,       false, null),
             ("Private Label",     x => x.PrivateLabelFlag,     false, null),
             //("Cust #",            x => x.CustNum,              false, null),
            // ("EUT",               x => x.EUT,                  false, null),
@@ -1231,8 +1255,19 @@
                 // Fit columns for the section
                 ws.UsedRange.AutofitColumns();
                 ws.Range["B:B"].ColumnWidth = 50;
-               
-          // --- Separate PCFs with blank rows ---
+                var lastCol = ws.UsedRange.LastColumn;
+                for (int c = 1; c <= lastCol -1; c++)
+                {
+                    // XlsIO reports 0 when the column is using the sheet's default width,
+                    // so fall back to StandardWidth in that case.
+                    double current = ws.Columns[c].ColumnWidth;
+                    if (current <= 0) current = ws.StandardWidth;
+
+                    double updated = Math.Min(255.0, current + 2.0);
+                    ws.Columns[c].ColumnWidth = updated;
+                }
+
+
                 row += 3;
             }
 
@@ -1254,101 +1289,28 @@
         ToastObj.Content = "Your file is complete";
         ToastObj.CssClass = "e-toast-success";
         await this.ToastObj.ShowAsync();
-
-
-
-
-
-        //await this.MyDetGrid.ExportToExcelAsync(exportProperties);
     }
 
-    private static string FormatCell(object? value)
-    {
-        if (value is null) return string.Empty;
-        if (value is DateTime dt) return dt.ToString("d");
-        return value.ToString() ?? string.Empty;
-    }
-
-
-
-    public void change(string name, Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args)
-    {
-        if (this.MyDetGrid != null)
-        {
-            if (args.Checked)
-            {
-                this.MyDetGrid.ShowColumnAsync(name, "Field");
-            }
-            else
-            {
-                this.MyDetGrid.HideColumnAsync(name, "Field");
-            }
-        }
-        StateHasChanged();
-    }
-
-
-
-    // Instant apply per button
-    private async Task ToggleColumnAsync(string field, bool isSelected)
-    {
-        if (field == "Pct to 4k")
-        {
-            selected[field] = isSelected;
-            if (isSelected)
-                await MyDetGrid.ShowColumns(field, "HeaderText");
-            else
-                await MyDetGrid.HideColumns(field, "HeaderText");
-        }
-        else
-        {
-            selected[field] = isSelected;
-            if (isSelected)
-                await MyDetGrid.ShowColumns(field, "Field");
-            else
-                await MyDetGrid.HideColumns(field, "Field");
-        }
-
-        StateHasChanged();
-    }
-
-    private static Dictionary<(int Pcf, string Item), bool>
-        AggregateDeleteLater(IEnumerable<PCFDetail> rows)
-    {
-        var dict = new Dictionary<(int Pcf, string Item), bool>();
-        foreach (var r in rows)
-        {
-            var key = KeyOf(r);
-            if (dict.TryGetValue(key, out var prev))
-                dict[key] = prev || r.DeleteLater;   // OR combine
-            else
-                dict[key] = r.DeleteLater;
-        }
-        return dict;
-    }
-
-    private string GetPrivateLabelDisplay(object data, string columnName)
-    {
-        var item = data as PCFDetail;
-        return item?.PrivateLabelFlag == 1 ? "Yes" : "No";
-    }
-
-    public async Task ToolbarClickHandler(Syncfusion.Blazor.Navigations.ClickEventArgs args)
-    {
-        if (args.Item.Id == "DetRptGrid_excelexport") //Id is combination of Grid's ID and itemname
-        {
-            var ExcelFileName = $"PCFReport.xlsx";
-            ExcelExportProperties exportProperties = new ExcelExportProperties
-            {
-                FileName = ExcelFileName
-            };
-            await this.MyDetGrid.ExportToExcelAsync(exportProperties);
-        }
-    }
     private async Task ClearFilters()
     {
         await MyDetGrid.ClearFilteringAsync();
+        if (!IncludeExpiredPCFs)
+            await MyDetGrid.FilterByColumnAsync("PCFStatusText", "equal", "Approved");
+    }
 
+    private async Task RefreshGrid()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        pcfDetails = await DataSvc.GetAllPCFDetailsWithQtyAsync();
+        _originalDeleteLater = AggregateDeleteLater(pcfDetails);
+
+        if (MyDetGrid != null)
+            await MyDetGrid.Refresh();
+
+        isLoading = false;
+        StateHasChanged();
     }
 
     // Ensure only one of the two checkboxes is selected per row
@@ -1366,6 +1328,42 @@
         StateHasChanged();
     }
 
+    private static string FormatCell(object? value)
+    {
+        if (value is null) return string.Empty;
+        if (value is DateTime dt) return dt.ToString("d");
+        return value.ToString() ?? string.Empty;
+    }
+
+    private static Dictionary<(int Pcf, string Item), bool>
+        AggregateDeleteLater(IEnumerable<PCFDetail> rows)
+    {
+        var dict = new Dictionary<(int Pcf, string Item), bool>();
+        foreach (var r in rows)
+        {
+            var key = KeyOf(r);
+            if (dict.TryGetValue(key, out var prev))
+                dict[key] = prev || r.DeleteLater;
+            else
+                dict[key] = r.DeleteLater;
+        }
+
+        return dict;
+    }
+
+    public async Task ToolbarClickHandler(Syncfusion.Blazor.Navigations.ClickEventArgs args)
+    {
+        if (args.Item.Id == "DetRptGrid_excelexport")
+        {
+            var excelFileName = "PCFReport.xlsx";
+            ExcelExportProperties exportProperties = new ExcelExportProperties
+            {
+                FileName = excelFileName
+            };
+            await MyDetGrid.ExportToExcelAsync(exportProperties);
+        }
+    }
+
     private async Task ApplyDeletes()
     {
         isBusy = true;
@@ -1374,76 +1372,53 @@
 
         try
         {
-            // Aggregate selections
-            // var deleteNow = pcfDetails.Where(x => x.DeleteNow).ToList();
-            // var deleteLater = pcfDetails.Where(x => x.DeleteLater).ToList();
             var deleteNowRows = pcfDetails.Where(x => x.DeleteNow).ToList();
             var currentLater = AggregateDeleteLater(pcfDetails);
+
             bool WasLater((int Pcf, string Item) k)
                 => _originalDeleteLater.TryGetValue(k, out var was) && was;
+
             bool IsLater((int Pcf, string Item) k)
                 => currentLater.TryGetValue(k, out var now) && now;
+
             var newlyMarkedLater = currentLater
-                .Where(kv => kv.Value && !WasLater(kv.Key))         // false -> true (or not present -> true)
+                .Where(kv => kv.Value && !WasLater(kv.Key))
                 .Select(kv => new { PCFNum = kv.Key.Pcf, ItemNum = kv.Key.Item, Reason = "Slow Sales" })
                 .ToList();
+
             var newlyUnmarkedLater = _originalDeleteLater
-                .Where(kv => kv.Value && !IsLater(kv.Key))          // true -> false (or missing now)
+                .Where(kv => kv.Value && !IsLater(kv.Key))
                 .Select(kv => new { PCFNum = kv.Key.Pcf, ItemNum = kv.Key.Item })
                 .ToList();
 
-            // 1) Immediate deletes (remove from PCF)
             if (deleteNowRows.Count > 0)
             {
-                // Use the identifiers you need — example uses PCFNum + ItemNum as a composite key
                 var nowKeys = deleteNowRows.Select(x => new { x.PCFNum, x.ItemNum }).ToList();
                 await DataSvc.RemoveItemsFromPCFAsync(nowKeys);
 
-                // Optionally reflect removal in the UI (remove rows)
                 pcfDetails.RemoveAll(r => r.DeleteNow);
 
                 foreach (var r in deleteNowRows)
                     _originalDeleteLater.Remove((r.PCFNum, r.ItemNum));
             }
 
-            // 2) Apply: Mark later (only newly marked)
             if (newlyMarkedLater.Count > 0)
             {
-
-                /*
-                var laterPayload = deleteLater.Select(x => new
-                {
-                    x.PCFNum,
-                    x.ItemNum,
-                    RequestedOnUtc = DateTime.Now,
-                    Reason = "Sales marked for later removal" // optional
-                }).ToList();
-                */
-
                 await DataSvc.MarkItemsForDeletionAsync(newlyMarkedLater);
 
-
-
-                // Update snapshot to reflect new true state
                 foreach (var nm in newlyMarkedLater)
                     _originalDeleteLater[(nm.PCFNum, nm.ItemNum)] = true;
             }
 
-            //statusMessage = BuildResultMessage(deleteNow.Count, deleteLater.Count);
-
-            // E) Apply: Unmark later (only newly unmarked)
             if (newlyUnmarkedLater.Count > 0)
             {
                 await DataSvc.UnmarkItemsForDeletionAsync(newlyUnmarkedLater);
-                // Update snapshot to reflect new false state
+
                 foreach (var um in newlyUnmarkedLater)
                     _originalDeleteLater[(um.PCFNum, um.ItemNum)] = false;
             }
 
             statusMessage = $"Deleted now: {deleteNowRows.Count}, newly marked later: {newlyMarkedLater.Count}, unmarked later: {newlyUnmarkedLater.Count}.";
-
-
-
         }
         catch (Exception ex)
         {
@@ -1459,245 +1434,4 @@
 
     private static string BuildResultMessage(int nowCount, int laterCount)
         => $"Deleted now: {nowCount}, queued for later: {laterCount}.";
-
-    /*private async Task SaveLayoutAs()
-    {
-        if (string.IsNullOrWhiteSpace(newLayoutName)) return;
-
-        var current = await MyDetGrid.GetPersistDataAsync();
-        savedLayouts[newLayoutName.Trim()] = current;
-        // await LocalStorage.SetItemAsync(LayoutsStoreKey, savedLayouts);
-        selectedLayoutName = newLayoutName.Trim();
-        newLayoutName = string.Empty;
-    }
-    */
-    /*
-    private async Task ApplySelectedLayout()
-    {
-        if (!string.IsNullOrWhiteSpace(selectedLayoutName) &&
-            savedLayouts.TryGetValue(selectedLayoutName, out var json))
-        {
-           @*  await MyDetGrid.SetPersistDataAsync(json);
-            await MyDetGrid.Refresh(); *@
-        }
-    }
-    */
-    /*
-    private async Task ResetToDefault()
-    {
-        // Option A: apply the captured default JSON
-        if (!string.IsNullOrEmpty(defaultLayoutJson))
-        {
-            await MyDetGrid.SetPersistDataAsync(defaultLayoutJson);
-            await MyDetGrid.Refresh();
-        }
-
-        // Option B (optional): also clear Syncfusion’s own localStorage entry for this grid
-        // await JS.InvokeVoidAsync("pcfGrid.clearSyncfusionPersistence", "PcfsGrid");
-    }
-    */
-    private async Task PrintVisibleColumns()
-    {
-        if (MyDetGrid != null)
-        {
-            var visibleColumns = await MyDetGrid.GetColumnsAsync();
-            var visibleColumnNames = visibleColumns.Where(c => c.Visible).Select(c => c.Field).ToList();
-            Console.WriteLine("Visible Columns: " + string.Join(", ", visibleColumnNames));
-        }
-    }
-
-    private static readonly Dictionary<int, string> PcfStatusMap = new()
-    {
-        {  0, "New" },
-        {  1, "Awaiting SM Approval" },
-        {  2, "Awaiting VP Approval" },
-        {  3, "Approved" },
-        { -1, "Reopened" },
-        { 99, "Expired" }
-    };
-
-    private static readonly Dictionary<string, string> ItemStatusMap = new()
-    {
-        { "A", "Approved" },
-        { "O", "Obsolete" },
-        { "S", "Slow Moving" }
-    };
-
-    private static readonly Dictionary<string, string> PcfTypeMap = new()
-    {
-        { "W",   "Warehouse (Standard)" },
-        { "DS",  "Dropship (Standard)" },
-        { "PW",  "Promo Warehouse" },
-        { "PD",  "Promo Dropship" },
-        { "T",   "Truckload" },
-        { "PL",  "Private Label Only" },
-        { "D",   "Direct" },
-        { "PART","Parts Only" }
-    };
-
-    private static string MapPcfStatus(int v) =>
-        PcfStatusMap.TryGetValue(v, out var s) ? s : v.ToString();
-
-    private static string MapItemStatus(string v) =>
-        (v != null && ItemStatusMap.TryGetValue(v, out var s)) ? s : v ?? string.Empty;
-
-    private static string MapPcfType(string v) =>
-        (v != null && PcfTypeMap.TryGetValue(v, out var s)) ? s : v ?? string.Empty;
-
-
-
 }
-
-<style>
-    .e-grid .e-headercell {
-        font-size: 0.4rem;
-        padding: 0.0rem 0;
-        line-height: 1.5;
-    }
-
-    .e-grid .e-rowcell {
-        font-size: 0.7rem;
-        padding: 0.3rem 0;
-        line-height: 1.2;
-    }
-
-    .e-grid .e-filtermenudiv {
-        margin: 2px 0.15rem 1px 0.01rem;
-        
-
-    }
-
-    .e-grid .e-headercell .e-filtered::before {
-        color: red;
-        font-weight: bold;
-    }
-
-    .e-grid .e-headercell .e-headertext {
-        font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-        font-size: 13px; /* tweak as needed */
-        font-weight: 700; /* 400–700 */
-        letter-spacing: .2px; /* optional */
-        
-    }
-
-    .worksheet-header-row {
-        display: flex;
-        align-items: center;
-        width: 100%;
-        margin-bottom: 2rem;
-    }
-
-    .worksheet-header-title {
-        flex: 1;
-        text-align: left;
-    }
-
-    .worksheet-header-btn {
-        flex: 1;
-        display: flex;
-        justify-content: center;
-    }
-
-    .worksheet-header-spacer {
-        flex: 1;
-    }
-
-    body {
-    }
-
-    :deep(.pcf-grid-scroll) {
-        overflow-x: auto; /* show horizontal scrollbar when needed */
-    }
-
-    /* Make the grid wider than narrow screens so scrolling kicks in */
-    :deep(#DetRptGrid.e-grid) {
-        min-width: 1000px; /* adjust to whatever fits your columns */
-    }
-    .e-btngrp-watch::before {
-        content: '\e71b';
-    }
-    .e-btngrp-star::before {
-        content: '\e710';
-    }
-    .e-btngrp-download::before {
-        content: '\e712';
-    }
-    .e-btngrp-bold::before {
-        content: '\e71a'
-    }
-    .e-btngrp-italic::before {
-        content: '\e708';
-    }
-    .e-btngrp-underline::before {
-        content: '\e703';
-    }
-    .button-group-section {
-        width: 320px;
-        margin: 0 auto;
-        margin-top: 1.7%;
-        margin-bottom: 1.7%;
-    }
-    .e-bigger .button-group-section {
-        width: 350px;
-    }
-    .button-group-section .row {
-        margin: 0 0 30px 0;
-    }
-    .button-group-section .row:last-child {
-        margin-bottom: 0;
-    }
-    .button-group-section .row .p:first-child {
-        margin-top: 0;
-    }
-    /* Make the whole button group wrap onto multiple lines */
-    .col-toggles.e-btn-group {
-        display: flex;           /* ensure flex, not inline-flex */
-        flex-wrap: wrap !important;   /* Syncfusion sets nowrap; override it */
-        gap: .4rem .6rem;        /* space between buttons (row x column) */
-        width: 80%;             /* let it use the row width */
-        justify-content: flex-start;
-    }
-
-    /* Keep each button sized to its content (no squish) */
-    .col-toggles .e-btn {
-        flex: 0 0 auto;
-    }
-    .col-toggles .e-btn.col-toggle { border-radius: 9999px; padding: .35rem .65rem; }
-
-    .col-toggles .e-btn.e-success.e-active { background-color: #198754; color: #fff; }
-    .col-toggles .e-btn.e-danger.e-active  { background-color: #dc3545; color: #fff; }
-
-    /* Optional softer look when not active (selected state already flips the class) */
-    .col-toggles .e-btn.e-success:not(.e-active) { background: #eaf6ed; color:#0f5132; }
-    .col-toggles .e-btn.e-danger:not(.e-active)  { background: #fcebea; color:#842029; }
-    .quick-actions { margin-top: .5rem; display: flex; gap: .5rem; }
-    .e-btn-sb-icons {
-        font-family: 'button-icons';
-        line-height: 1;
-        font-style: normal;
-        font-weight: normal;
-        font-variant: normal;
-        text-transform: none;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-    }
-    .e-play-icon::before {
-        content: '\e701';
-    }
-    .e-pause-icon::before {
-        content: '\e705';
-    }
-    .e-open-icon::before {
-        content: '\e70d';
-    }
-    .e-add-icon::before {
-        content: '\e70a';
-    }
-
-    .e-btn.e-outline {
-        color: var(--bs-primary, #0d6efd); /* works with Bootstrap 5; falls back to a solid blue */
-        font-weight: 500
-    }    
-
-
-</style>

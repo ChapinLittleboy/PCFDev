@@ -1326,7 +1326,20 @@ EXEC sp_executesql @query;
 
     public async Task<List<PCFDetail>> GetAllPCFDetailsWithQtyAsync()
     {
-        string sql = @"
+        var fiscalYearStart = _configuration.GetValue<int?>("FiscalYearSettings:StartYear") ?? 2023;
+        var fiscalYearEnd = _configuration.GetValue<int?>("FiscalYearSettings:EndYear") ?? 2028;
+
+        if (fiscalYearEnd < fiscalYearStart)
+            (fiscalYearStart, fiscalYearEnd) = (fiscalYearEnd, fiscalYearStart);
+
+        var years = Enumerable.Range(fiscalYearStart, fiscalYearEnd - fiscalYearStart + 1).ToList();
+
+        var qtyOuterSelect = string.Join(",\n    ", years.Select(y => $"ISNULL(p.FY{y}_Qty, 0) as FY{y}_Qty"));
+        var salesOuterSelect = string.Join(",\n    ", years.Select(y => $"ISNULL(p.FY{y}_Sales, 0) as FY{y}_Sales"));
+        var remoteQtyAgg = string.Join(",\n        ", years.Select(y => $"SUM(CASE WHEN fc.FiscalYear = {y} THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY{y}_Qty"));
+        var remoteSalesAgg = string.Join(",\n        ", years.Select(y => $"SUM(CASE WHEN fc.FiscalYear = {y} THEN CAST(ii.qty_invoiced * ii.price AS decimal(18,4)) ELSE 0 END) AS FY{y}_Sales"));
+
+        string sql = $@"
   SELECT 
     h.PCFNum, 
     h.CustNum as CustomerNumber, 
@@ -1362,18 +1375,8 @@ h.CmaRef,
   fc.Description as FamilyCodeDescription,
     LTRIM(RTRIM(COALESCE(h.SRNum, cc.Salesman, ''))) as Salesman,
     LTRIM(RTRIM(COALESCE(ca0.Corp_Cust,'N/A'))) as CorpCustNum,
-    ISNULL(p.FY2023_Qty, 0) as FY2023_Qty,
-    ISNULL(p.FY2024_Qty, 0) as FY2024_Qty,
-    ISNULL(p.FY2025_Qty, 0) as FY2025_Qty,
-    ISNULL(p.FY2026_Qty, 0) as FY2026_Qty,
-    ISNULL(p.FY2027_Qty, 0) as FY2027_Qty,
-    ISNULL(p.FY2028_Qty, 0) as FY2028_Qty,
-   ISNULL(p.FY2023_Sales, 0) as FY2023_Qty,
-    ISNULL(p.FY2024_Sales, 0) as FY2024_Sales,
-    ISNULL(p.FY2025_Sales, 0) as FY2025_Sales,
-    ISNULL(p.FY2026_Sales, 0) as FY2026_Sales,
-    ISNULL(p.FY2027_Sales, 0) as FY2027_Sales,
-    ISNULL(p.FY2028_Sales, 0) as FY2028_Sales,
+    {qtyOuterSelect},
+    {salesOuterSelect},
 
     -- NEW: 1 if (PCF, Item) exists in PcItemsDeleteLater; 0 otherwise
     CAST(CASE WHEN d.PcfNum IS NOT NULL THEN 1 ELSE 0 END AS bit) AS DeleteLater
@@ -1400,18 +1403,8 @@ LEFT JOIN OPENQUERY([ciisql10], '
     SELECT
         ih.cust_num,
         ii.item,
-        SUM(CASE WHEN fc.FiscalYear = 2023 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2023_Qty,
-        SUM(CASE WHEN fc.FiscalYear = 2024 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2024_Qty,
-        SUM(CASE WHEN fc.FiscalYear = 2025 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2025_Qty,
-        SUM(CASE WHEN fc.FiscalYear = 2026 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2026_Qty,
-        SUM(CASE WHEN fc.FiscalYear = 2027 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2027_Qty,
-        SUM(CASE WHEN fc.FiscalYear = 2028 THEN CAST(ii.qty_invoiced AS decimal(18,4)) ELSE 0 END) AS FY2028_Qty,
-        SUM(CASE WHEN fc.FiscalYear = 2023 THEN CAST(ii.qty_invoiced * ii.price AS decimal(18,4)) ELSE 0 END) AS FY2023_Sales,
-        SUM(CASE WHEN fc.FiscalYear = 2024 THEN CAST(ii.qty_invoiced * ii.price AS decimal(18,4)) ELSE 0 END) AS FY2024_Sales,
-        SUM(CASE WHEN fc.FiscalYear = 2025 THEN CAST(ii.qty_invoiced * ii.price AS decimal(18,4)) ELSE 0 END) AS FY2025_Sales,
-        SUM(CASE WHEN fc.FiscalYear = 2026 THEN CAST(ii.qty_invoiced * ii.price AS decimal(18,4)) ELSE 0 END) AS FY2026_Sales,
-        SUM(CASE WHEN fc.FiscalYear = 2027 THEN CAST(ii.qty_invoiced * ii.price AS decimal(18,4)) ELSE 0 END) AS FY2027_Sales,
-        SUM(CASE WHEN fc.FiscalYear = 2028 THEN CAST(ii.qty_invoiced * ii.price AS decimal(18,4)) ELSE 0 END) AS FY2028_Sales
+        {remoteQtyAgg},
+        {remoteSalesAgg}
     FROM Bat_App.dbo.inv_hdr_mst_all AS ih
     JOIN Bat_App.dbo.inv_item_mst_all AS ii
         ON ih.inv_num = ii.inv_num
@@ -1423,7 +1416,7 @@ LEFT JOIN OPENQUERY([ciisql10], '
        AND ii.co_line    = ci.co_line
     JOIN tempwork.dbo.FiscalCalendarVw AS fc
         ON ih.inv_date = fc.[Date]
-    WHERE fc.FiscalYear BETWEEN 2023 AND 2028
+    WHERE fc.FiscalYear BETWEEN {fiscalYearStart} AND {fiscalYearEnd}
     GROUP BY ih.cust_num, ii.item
 ') AS p
     ON ltrim(p.cust_num) = i.custnum
