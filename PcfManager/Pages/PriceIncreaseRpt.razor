@@ -70,10 +70,7 @@
 		if (args.Item.Id == "PcfsGrid_excelexport") //Id is combination of Grid's ID and itemname
 		{
 			var ExcelFileName = $"PriceIncreases.xlsx";
-			ExcelExportProperties exportProperties = new ExcelExportProperties
-				{
-					FileName = ExcelFileName
-				};
+			ExcelExportProperties exportProperties = ExportBranding.CreateExcelExportProperties(ExcelFileName);
 			await this.MyGrid.ExportToExcelAsync(exportProperties);
 		}
 	}

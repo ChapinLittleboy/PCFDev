@@ -37,6 +37,7 @@ public class ExcelGenerator
         using ExcelEngine excelEngine = new ExcelEngine();
         IApplication application = excelEngine.Excel;
         application.DefaultVersion = ExcelVersion.Xlsx;
+        ExportBranding.ApplyTo(application);
 
         IWorkbook workbook = application.Workbooks.Create(1);
         IWorksheet worksheet = workbook.Worksheets[0];
@@ -113,6 +114,7 @@ public class ExcelGenerator
         }
 
         worksheet.UsedRange.AutofitColumns();
+        ExportBranding.ApplyTo(workbook);
 
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
@@ -454,6 +456,7 @@ public class ExcelGenerator
         using ExcelEngine excelEngine = new ExcelEngine();
         IApplication application = excelEngine.Excel;
         application.DefaultVersion = ExcelVersion.Xlsx;
+        ExportBranding.ApplyTo(application);
 
         // Create workbook and worksheet
         IWorkbook workbook = application.Workbooks.Create(1);
@@ -566,6 +569,7 @@ public class ExcelGenerator
         }
 
         worksheet.UsedRange.AutofitColumns();
+        ExportBranding.ApplyTo(workbook);
 
         // Save workbook to memory stream
         using MemoryStream stream = new MemoryStream();

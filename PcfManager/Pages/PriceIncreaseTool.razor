@@ -325,10 +325,7 @@ else
         if (args.Item.Id == "PcfsGrid_excelexport")
         {
             var ExcelFileName = $"PriceIncreases_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
-            ExcelExportProperties exportProperties = new()
-            {
-                FileName = ExcelFileName
-            };
+            ExcelExportProperties exportProperties = ExportBranding.CreateExcelExportProperties(ExcelFileName);
             await this.MyGrid.ExportToExcelAsync(exportProperties);
         }
         else if (args.Item.Id == "PcfsGrid_Export by SalesManager")
@@ -372,6 +369,7 @@ else
             using var excelEngine = new Syncfusion.XlsIO.ExcelEngine();
             var application = excelEngine.Excel;
             application.DefaultVersion = Syncfusion.XlsIO.ExcelVersion.Xlsx;
+            ExportBranding.ApplyTo(application);
             var workbook = application.Workbooks.Create(1);
             var firstSheet = workbook.Worksheets[0];
             //firstSheet.Remove(); // Remove default sheet
@@ -422,6 +420,7 @@ else
                 ws.UsedRange.AutofitColumns();
             }
             workbook.Worksheets[0].Remove(); // Remove the first empty sheet
+            ExportBranding.ApplyTo(workbook);
 
             // Save to stream and trigger download
             using var ms = new MemoryStream();

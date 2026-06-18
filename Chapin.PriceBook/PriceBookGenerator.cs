@@ -12,6 +12,7 @@ public sealed class PriceBookGenerator : IPriceBookGenerator
     private const int TemplateSectionRow = 3;
     private const int TemplateSubsectionRow = 4;
     private const int TemplateItemRow = 5;
+    private const string DocumentFontName = "Arial";
 
     public PriceBookGenerator(IEnumerable<IDataSource> sources)
     {
@@ -29,6 +30,7 @@ public sealed class PriceBookGenerator : IPriceBookGenerator
         using var engine = new ExcelEngine();
         var app = engine.Excel;
         app.DefaultVersion = ExcelVersion.Xlsx;
+        app.StandardFont = DocumentFontName;
 
         using var input = File.OpenRead(req.TemplatePath);
         var wb = app.Workbooks.Open(input, ExcelOpenType.Automatic);
@@ -201,6 +203,7 @@ public sealed class PriceBookGenerator : IPriceBookGenerator
             }
 
         using var ms = new MemoryStream();
+        ApplyDocumentFont(wb);
         wb.SaveAs(ms);
         wb.Close();
         return ms.ToArray();
@@ -345,6 +348,22 @@ public sealed class PriceBookGenerator : IPriceBookGenerator
         var rng = sheet.Range[row, 2, row, 3]; // B..C
         if (!rng.IsMerged)
             rng.Merge();
+    }
+
+    private static void ApplyDocumentFont(IWorkbook workbook)
+    {
+        foreach (IStyle style in workbook.Styles)
+        {
+            style.Font.FontName = DocumentFontName;
+        }
+
+        foreach (IWorksheet worksheet in workbook.Worksheets)
+        {
+            if (worksheet.UsedRange is { } usedRange)
+            {
+                usedRange.CellStyle.Font.FontName = DocumentFontName;
+            }
+        }
     }
 
     // ----------------- Helpers (labels) -----------------

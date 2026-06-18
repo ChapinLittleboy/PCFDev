@@ -72,11 +72,11 @@ public class ExportService
         }
 
         // Define fonts
-        PdfFont titleFont = new PdfStandardFont(PdfFontFamily.Helvetica, 14, PdfFontStyle.Bold);
-        PdfFont headerFont = new PdfStandardFont(PdfFontFamily.Helvetica, 12, PdfFontStyle.Bold);
-        PdfFont regularFont = new PdfStandardFont(PdfFontFamily.Helvetica, 10);
-        PdfFont infoFont = new PdfStandardFont(PdfFontFamily.Helvetica, 10, PdfFontStyle.Bold);
-        PdfFont smallFont = new PdfStandardFont(PdfFontFamily.Helvetica, 8);
+        PdfFont titleFont = CreateArialFont(14, PdfFontStyle.Bold);
+        PdfFont headerFont = CreateArialFont(12, PdfFontStyle.Bold);
+        PdfFont regularFont = CreateArialFont(10);
+        PdfFont infoFont = CreateArialFont(10, PdfFontStyle.Bold);
+        PdfFont smallFont = CreateArialFont(8);
 
         // Define margins
         float marginX = 40;
@@ -457,5 +457,18 @@ Prices and product availability are also subject to change at any time due to ma
             attachment.Dispose();
             pdfStream.Dispose();
         }
+    }
+
+    private static PdfFont CreateArialFont(float size, PdfFontStyle style = PdfFontStyle.Regular)
+    {
+        var fontFileName = style.HasFlag(PdfFontStyle.Bold) ? "arialbd.ttf" : "arial.ttf";
+        var fontPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), fontFileName);
+
+        if (File.Exists(fontPath))
+        {
+            return new PdfTrueTypeFont(fontPath, size, style);
+        }
+
+        return new PdfStandardFont(PdfFontFamily.Helvetica, size, style);
     }
 }
